@@ -2,6 +2,9 @@
 
 > Smarter aisles. Faster trips.
 
+**Live app:** https://levelone-co.github.io/shop-wise/
+*(Open on your phone and "Add to Home Screen" to install as a PWA.)*
+
 A mobile-first PWA shopping list that sorts items by aisle as you add them, then guides you through the store in **Shopping Mode** — with a Finder that shows you where each item lives on a sample store map.
 
 ## Features
