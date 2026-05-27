@@ -46,7 +46,20 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
   if (m === "GET" && p === "/api/list")             return getList(env, url);
   if (m === "GET" && p === "/api/products/lookup")  return lookupProduct(env, url);
 
-  // ─── Auth required from here ───
+  // ─── Pre-Do ingest: token may come in body (its existing format) ───
+  if (m === "POST" && p === "/api/from-pre-do") {
+    // Clone so the handler can still consume the body.
+    const cloned = req.clone();
+    const body = await readJson(cloned).catch(() => ({}));
+    const bodyToken = (body && typeof body === "object" && "token" in body) ? String(body.token) : "";
+    const headerOk = checkAuth(req, env) === null;
+    if (!headerOk && bodyToken !== env.SHOPWISE_AUTH_TOKEN) {
+      return jsonResp({ ok: false, error: "Unauthorized" }, env, 401);
+    }
+    return fromPreDo(req, env);
+  }
+
+  // ─── All other writes require Bearer header ───
   const authError = checkAuth(req, env);
   if (authError) return authError;
 
@@ -57,9 +70,6 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
   if (m === "POST" && p === "/api/list/update")           return listUpdate(req, env);
   if (m === "POST" && p === "/api/list/delete")           return listDelete(req, env);
   if (m === "POST" && p === "/api/list/external-status")  return listExternalStatus(req, env);
-
-  // Pre-Do ingest
-  if (m === "POST" && p === "/api/from-pre-do")           return fromPreDo(req, env);
 
   // Admin CRUD
   const adminMatch = p.match(/^\/api\/admin\/(retailers|products|aisles|locations)$/);
