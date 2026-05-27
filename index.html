@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Shop Wise" />
 <link rel="manifest" href="manifest.json" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232c7a4b'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='white'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231f5634'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='white'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E" />
 <link rel="apple-touch-icon" href="icons/icon-192.svg" />
 <title>Shop Wise</title>
 <style>
@@ -81,7 +81,7 @@
     transition: background 0.15s;
   }
   header .mode-pill:active { background: rgba(255,255,255,0.4); }
-  header .theme-toggle {
+  header .icon-btn {
     background: rgba(255,255,255,0.2);
     border: none;
     color: white;
@@ -92,8 +92,29 @@
     width: 34px; height: 34px;
     display: flex; align-items: center; justify-content: center;
   }
-  header .theme-toggle:active { background: rgba(255,255,255,0.35); }
+  header .icon-btn:active { background: rgba(255,255,255,0.35); }
   main { max-width: 600px; margin: 0 auto; padding: 16px; }
+
+  /* Config / connection banner */
+  .config-banner {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #78350f;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  [data-theme="dark"] .config-banner {
+    background: #422006;
+    border-color: #fbbf24;
+    color: #fef3c7;
+  }
+  .config-banner:active { filter: brightness(0.95); }
 
   /* Add row */
   .add-row {
@@ -108,7 +129,7 @@
     position: relative;
   }
   .input-wrap { position: relative; }
-  input, button {
+  input, button, select, textarea {
     font: inherit;
     padding: 12px;
     border-radius: 8px;
@@ -116,8 +137,22 @@
     background: var(--card);
     color: var(--text);
   }
-  input { width: 100%; padding-right: 40px; }
-  input:focus { outline: 2px solid var(--green); border-color: var(--green); }
+  input, select, textarea { width: 100%; }
+  input { padding-right: 40px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--green); border-color: var(--green); }
+  button {
+    background: var(--green);
+    color: white;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:active { background: var(--green-dark); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  button.danger { background: var(--danger); }
+  button.warn { background: var(--warn); }
   .chevron-btn {
     position: absolute;
     right: 4px; top: 50%;
@@ -134,21 +169,6 @@
   }
   .chevron-btn:hover { background: var(--green-light); color: var(--green-dark); }
   .chevron-btn:active { background: var(--green-light); }
-  button {
-    background: var(--green);
-    color: white;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  button:active { background: var(--green-dark); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
-  button.danger { background: var(--danger); }
-  button.warn { background: var(--warn); }
-
-  /* Custom suggestions dropdown */
   .suggestions {
     position: absolute;
     top: calc(100% + 4px);
@@ -174,22 +194,14 @@
   }
   .suggestion:last-child { border-bottom: none; }
   .suggestion.active, .suggestion:hover { background: var(--green-light); }
-  .suggestion .prod {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text);
-  }
+  .suggestion .prod { font-size: 16px; font-weight: 600; color: var(--text); }
   .suggestion .prod mark {
     background: transparent;
     color: var(--green-dark);
     font-weight: 700;
     text-decoration: underline;
   }
-  .suggestion .ais {
-    font-size: 12px;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
+  .suggestion .ais { font-size: 12px; color: var(--muted); flex-shrink: 0; }
 
   .actions {
     display: grid;
@@ -205,16 +217,8 @@
     margin-bottom: 16px;
   }
   .secondary-actions button { padding: 10px 6px; font-size: 13px; }
-  @media print {
-    header, .add-row, .actions, .secondary-actions, .shopping-banner, .stat-line, .modal-overlay,
-    .find-btn, .del-btn, .check { display: none !important; }
-    body { background: white !important; color: black !important; }
-    main { max-width: none; padding: 12px; }
-    .item { border: none; padding: 4px 0; background: transparent; }
-    .aisle-header { color: black; border-bottom: 1px solid #999; }
-  }
 
-  /* Shopping banner takes the place of the add-row in shopping mode (same size). */
+  /* Shopping banner — same size as add-row */
   .shopping-banner {
     background: linear-gradient(90deg, #fef3c7, #fde68a);
     border: 1px solid #f59e0b;
@@ -227,7 +231,6 @@
     text-align: center;
     cursor: pointer;
     user-select: none;
-    /* match add-row's visual height: input padding 12px + border 2px + line-height ~24px ≈ 50px */
     min-height: 50px;
     display: flex; align-items: center; justify-content: center;
     transition: filter 0.15s;
@@ -239,16 +242,47 @@
     color: #fef3c7;
   }
 
-  .aisle-group { margin-bottom: 18px; }
-  .aisle-header {
-    font-size: 13px;
+  /* Retailer + aisle grouping */
+  .retailer-group { margin-bottom: 22px; }
+  .retailer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 6px;
+    margin-bottom: 6px;
+    border-bottom: 2px solid var(--border);
+  }
+  .retailer-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .retailer-name {
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
-    color: var(--green);
     letter-spacing: 0.5px;
-    padding: 6px 4px;
+  }
+  .retailer-kind-chip {
+    font-size: 10px;
+    background: var(--green-light);
+    color: var(--green-dark);
+    padding: 2px 6px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .retailer-kind-chip.online { background: #dbeafe; color: #1e40af; }
+  [data-theme="dark"] .retailer-kind-chip.online { background: #1e3a8a; color: #dbeafe; }
+  .aisle-group { margin-bottom: 12px; padding-left: 6px; }
+  .aisle-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 4px;
     margin-bottom: 4px;
-    border-bottom: 2px solid var(--green-light);
   }
   .item {
     background: var(--card);
@@ -276,11 +310,36 @@
     width: auto; padding: 6px 10px; font-size: 12px;
     background: var(--green-light); color: var(--green-dark); border: none;
   }
+  .item .link-btn {
+    width: auto; padding: 6px 10px; font-size: 14px;
+    background: #dbeafe; color: #1e40af; border: none;
+    text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  [data-theme="dark"] .item .link-btn { background: #1e3a8a; color: #dbeafe; }
+  .item .assign-btn {
+    width: auto; padding: 6px 10px; font-size: 12px;
+    background: transparent; color: var(--green); border: 1px dashed var(--green);
+  }
   .item .del-btn {
     width: auto; padding: 6px 10px; font-size: 14px;
     background: transparent; color: var(--muted); border: none;
   }
   .item .del-btn:active { color: var(--danger); }
+  .item .badges { display: flex; gap: 4px; }
+  .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--green-light);
+    color: var(--green-dark);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.predo { background: #ede9fe; color: #5b21b6; }
+  [data-theme="dark"] .badge.predo { background: #4c1d95; color: #ede9fe; }
+
   .empty {
     text-align: center;
     padding: 40px 20px;
@@ -295,9 +354,17 @@
     padding: 24px 16px calc(env(safe-area-inset-bottom) + 24px);
     opacity: 0.7;
   }
-  @media print { footer.app-footer { display: none !important; } }
+  @media print {
+    header, .add-row, .actions, .secondary-actions, .shopping-banner, .stat-line,
+    .modal-overlay, .find-btn, .link-btn, .assign-btn, .del-btn, .check,
+    .config-banner, footer.app-footer { display: none !important; }
+    body { background: white !important; color: black !important; }
+    main { max-width: none; padding: 12px; }
+    .item { border: none; padding: 4px 0; background: transparent; }
+    .retailer-header, .aisle-header { color: black; border-bottom: 1px solid #999; }
+  }
 
-  /* Modal / Finder */
+  /* Modal */
   .modal-overlay {
     position: fixed; inset: 0; background: var(--modal-overlay);
     display: none; align-items: center; justify-content: center;
@@ -309,6 +376,9 @@
     max-width: 460px; width: 100%; max-height: 92vh; overflow: auto; padding: 16px;
   }
   .modal h2 { margin: 0 0 4px; font-size: 18px; }
+  .modal label { font-size: 12px; color: var(--muted); display: block; margin: 8px 0 4px; font-weight: 600; }
+  .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .modal .stack { display: grid; gap: 8px; }
   .modal .item-loc { color: var(--green); font-weight: 600; margin-bottom: 12px; }
   .map-wrap { background: var(--map-bg); border-radius: 10px; padding: 6px; margin-bottom: 12px; }
   .map-svg { width: 100%; height: auto; display: block; }
@@ -318,6 +388,10 @@
   }
   .legend span { display: inline-flex; align-items: center; gap: 4px; }
   .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .no-map-msg {
+    padding: 24px; text-align: center; color: var(--muted);
+    background: var(--map-bg); border-radius: 10px;
+  }
 </style>
 </head>
 <body>
@@ -328,11 +402,16 @@
   </div>
   <div class="right">
     <span class="mode-pill" id="modePill">List Mode</span>
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+    <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
   </div>
 </header>
 
 <main>
+  <div id="configBanner" class="config-banner" style="display:none">
+    <span>⚙️</span><span id="configBannerMsg">Set your API token to add items.</span>
+  </div>
+
   <div class="add-row" id="addRow">
     <div class="input-wrap">
       <input id="itemInput" type="text" placeholder="Type or pick an item…" autocomplete="off" autocapitalize="off" spellcheck="false" />
@@ -358,134 +437,113 @@
   </div>
 
   <div class="stat-line" id="statLine"></div>
-
   <div id="list"></div>
 </main>
 
 <footer class="app-footer">
-  Shop Wise · MVP <span id="appVersion">v0.4</span> · skeleton only — not for production
+  Shop Wise · <span id="appVersion">v1.0</span> · cloud-backed
 </footer>
 
+<!-- Finder modal -->
 <div class="modal-overlay" id="finderModal">
   <div class="modal">
     <h2 id="finderTitle">Finder</h2>
     <div class="item-loc" id="finderLoc"></div>
-    <div class="map-wrap">
-      <svg id="finderMap" class="map-svg" viewBox="0 0 220 340" xmlns="http://www.w3.org/2000/svg"></svg>
-    </div>
-    <div class="legend">
-      <span><span class="dot" style="background:#2563eb"></span>You are here</span>
-      <span><span class="dot" style="background:#2c7a4b"></span>Item location</span>
-      <span><span class="dot" style="background:#f59e0b"></span>Walking route</span>
+    <div id="finderBody">
+      <div class="map-wrap">
+        <svg id="finderMap" class="map-svg" viewBox="0 0 220 340" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#2563eb"></span>You are here</span>
+        <span><span class="dot" style="background:#2c7a4b"></span>Item location</span>
+        <span><span class="dot" style="background:#f59e0b"></span>Walking route</span>
+      </div>
     </div>
     <button class="secondary" id="finderClose">Close</button>
   </div>
 </div>
 
+<!-- Allocate retailer modal -->
+<div class="modal-overlay" id="allocateModal">
+  <div class="modal">
+    <h2 id="allocateTitle">Allocate</h2>
+    <label for="allocRetailer">Retailer</label>
+    <select id="allocRetailer"></select>
+    <label for="allocAisle">Aisle (in-store retailers only)</label>
+    <select id="allocAisle"></select>
+    <div class="row">
+      <button class="secondary" id="allocCancel">Cancel</button>
+      <button id="allocSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>Settings</h2>
+    <label for="settingsApiUrl">API URL</label>
+    <input id="settingsApiUrl" type="text" />
+    <label for="settingsToken">Auth Token</label>
+    <input id="settingsToken" type="text" placeholder="Paste SHOPWISE_AUTH_TOKEN" />
+    <div class="row">
+      <button class="secondary" id="settingsCancel">Cancel</button>
+      <button id="settingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ============ Store layout ============ */
-const ZONES = [
-  { id: "bakery",   name: "Bakery",   order: 7,  kind: "perim", side: "top", x: 10,  y: 10,  w: 60, h: 40 },
-  { id: "deli",     name: "Deli",     order: 11, kind: "perim", side: "top", x: 80,  y: 10,  w: 60, h: 40 },
-  { id: "butchery", name: "Butchery", order: 12, kind: "perim", side: "top", x: 150, y: 10,  w: 60, h: 40 },
+/* ============ DOM helper ============ */
+const $ = id => document.getElementById(id);
 
-  { id: "produce", name: "Produce",       order: 1, kind: "aisle", x: 10,  y: 64, w: 20, h: 192 },
-  { id: "a1",      name: "Aisle 1",       order: 2, kind: "aisle", x: 32,  y: 64, w: 20, h: 192, sub: "Snacks" },
-  { id: "a2",      name: "Aisle 2",       order: 3, kind: "aisle", x: 54,  y: 64, w: 20, h: 192, sub: "Cereals" },
-  { id: "a3",      name: "Aisle 3",       order: 4, kind: "aisle", x: 76,  y: 64, w: 20, h: 192, sub: "Canned" },
-  { id: "a4",      name: "Aisle 4",       order: 5, kind: "aisle", x: 98,  y: 64, w: 20, h: 192, sub: "Pasta & Rice" },
-  { id: "a5",      name: "Aisle 5",       order: 6, kind: "aisle", x: 120, y: 64, w: 20, h: 192, sub: "Cleaning" },
-  { id: "a6",      name: "Aisle 6",       order: 8, kind: "aisle", x: 142, y: 64, w: 20, h: 192, sub: "Toiletries" },
-  { id: "a7",      name: "Aisle 7",       order: 9, kind: "aisle", x: 164, y: 64, w: 20, h: 192, sub: "Beverages" },
-  { id: "a8",      name: "Aisle 8",       order: 10,kind: "aisle", x: 186, y: 64, w: 20, h: 192, sub: "Baby & Pet" },
-
-  { id: "dairy",    name: "Dairy",    order: 13, kind: "perim", side: "bottom", x: 10,  y: 270, w: 80, h: 40 },
-  { id: "frozen",   name: "Frozen",   order: 14, kind: "perim", side: "bottom", x: 100, y: 270, w: 50, h: 40 },
-  { id: "checkout", name: "Checkout", order: 15, kind: "perim", side: "bottom", x: 160, y: 270, w: 50, h: 40 },
-];
-
-const ENTRANCE = { x: 80, y: 315, w: 60, h: 20 };
-const TOP_CORRIDOR_Y = 58;
-const BOTTOM_CORRIDOR_Y = 263;
-
-const zoneById = id => ZONES.find(z => z.id === id);
-const zoneCenter = z => ({ x: z.x + z.w / 2, y: z.y + z.h / 2 });
-
-const CATALOG = [
-  { name: "Bananas",              aisle: "produce" },
-  { name: "Apples",               aisle: "produce" },
-  { name: "Tomatoes",             aisle: "produce" },
-  { name: "Onions",               aisle: "produce" },
-  { name: "Bread",                aisle: "bakery" },
-  { name: "NikNaks",              aisle: "a1" },
-  { name: "Simba Chips",          aisle: "a1" },
-  { name: "Beacon Chocolate",     aisle: "a1" },
-  { name: "Jungle Oats",          aisle: "a2" },
-  { name: "ProNutro",             aisle: "a2" },
-  { name: "Koo Baked Beans",      aisle: "a3" },
-  { name: "Lucky Star Pilchards", aisle: "a3" },
-  { name: "Tastic Rice",          aisle: "a4" },
-  { name: "Fatti's Pasta",        aisle: "a4" },
-  { name: "Sunlight Dishwash",    aisle: "a5" },
-  { name: "Handy Andy",           aisle: "a5" },
-  { name: "Colgate Toothpaste",   aisle: "a6" },
-  { name: "Dove Soap",            aisle: "a6" },
-  { name: "Coca-Cola",            aisle: "a7" },
-  { name: "Rooibos Tea",          aisle: "a7" },
-  { name: "Five Roses Tea",       aisle: "a7" },
-  { name: "Purity Baby Food",     aisle: "a8" },
-  { name: "Pampers",              aisle: "a8" },
-  { name: "Chappies",             aisle: "checkout" },
-  { name: "Russians",             aisle: "deli" },
-  { name: "Mince",                aisle: "butchery" },
-  { name: "Chicken",              aisle: "butchery" },
-  { name: "Milk",                 aisle: "dairy" },
-  { name: "Yoghurt",              aisle: "dairy" },
-  { name: "Whipped Cream",        aisle: "dairy" },
-  { name: "Frozen Peas",          aisle: "frozen" },
-];
-
-/* ============ State + undo (last add or tick only) ============ */
-const STORAGE_KEY = "shopwise.state.v1";
+/* ============ Config (persisted) ============ */
+const CONFIG_KEY = "shopwise.config.v1";
 const THEME_KEY = "shopwise.theme";
-let state = loadState();
-// lastAction: { kind: "add"|"tick", id: itemId } — cleared by any other action.
-let lastAction = null;
+const DEFAULT_API = "https://shop-wise-api.apps-8ec.workers.dev";
 
-function loadState() {
+function loadConfig() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const s = JSON.parse(raw);
-      if (s && Array.isArray(s.items)) {
-        s.items = s.items.filter(i => !i.checked);
-        s.shopping = false; // always open in List Mode
-        return s;
-      }
-    }
+    const raw = localStorage.getItem(CONFIG_KEY);
+    if (raw) return JSON.parse(raw);
   } catch (e) {}
-  return { items: [], shopping: false };
+  return { apiUrl: DEFAULT_API, token: "" };
 }
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
-}
-function undo() {
-  if (!lastAction) return;
-  if (lastAction.kind === "add") {
-    state.items = state.items.filter(i => i.id !== lastAction.id);
-  } else if (lastAction.kind === "tick") {
-    const it = state.items.find(i => i.id === lastAction.id);
-    if (it) it.checked = !it.checked;
+function saveConfig(cfg) { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }
+let config = loadConfig();
+
+/* ============ API client ============ */
+async function api(path, opts = {}) {
+  const url = config.apiUrl.replace(/\/$/, "") + path;
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  if (opts.auth !== false && config.token) headers["Authorization"] = "Bearer " + config.token;
+  const init = { method: opts.method || "GET", headers };
+  if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
+  const resp = await fetch(url, init);
+  if (!resp.ok) {
+    let detail = "";
+    try { detail = (await resp.json()).error || ""; } catch (e) {}
+    throw new Error(`HTTP ${resp.status}${detail ? ": " + detail : ""}`);
   }
-  lastAction = null;
-  saveState();
-  render();
+  return resp.json();
 }
+
+/* ============ State ============ */
+let state = {
+  retailers: [],          // [{id, name, color, kind, online_url_template, position, is_default}]
+  catalog: [],            // [{product_id, name, brand, retailer_id, aisle_id, indicative_price, is_primary}]
+  catalogByName: new Map(),  // name (lower) → { name, defaultRetailerId, defaultAisleId }
+  aislesByRetailer: new Map(), // retailerId → [aisles]
+  items: [],              // list_items from API
+  shopping: false,
+  loading: true,
+  lastAction: null,       // {kind: "add"|"tick", id}
+};
 
 /* ============ Theme ============ */
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  const btn = document.getElementById("themeToggle");
+  const btn = $("themeToggle");
   if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
 }
 function toggleTheme() {
@@ -495,9 +553,61 @@ function toggleTheme() {
 }
 applyTheme(localStorage.getItem(THEME_KEY) || "light");
 
-/* ============ Rendering ============ */
-const $ = id => document.getElementById(id);
+/* ============ Boot ============ */
+async function boot() {
+  if (!config.token) showConfigBanner("Set your API token to add items. Tap to open settings.");
+  await refreshAll();
+}
 
+async function refreshAll() {
+  state.loading = true;
+  render();
+  try {
+    const [retailersR, catalogR, listR] = await Promise.all([
+      api("/api/retailers", { auth: false }),
+      api("/api/catalog", { auth: false }),
+      api("/api/list", { auth: false }),
+    ]);
+    state.retailers = retailersR.retailers || [];
+    state.catalog = catalogR.catalog || [];
+    state.items = listR.items || [];
+    rebuildCatalogIndex();
+  } catch (err) {
+    showConfigBanner("Couldn't reach the server: " + err.message + ". Tap to open settings.");
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+function rebuildCatalogIndex() {
+  const map = new Map();
+  for (const c of state.catalog) {
+    const key = c.name.toLowerCase();
+    const existing = map.get(key);
+    // Prefer primary location, otherwise first encountered.
+    if (!existing || c.is_primary) {
+      map.set(key, {
+        name: c.name,
+        product_id: c.product_id,
+        retailer_id: c.retailer_id,
+        aisle_id: c.aisle_id,
+      });
+    }
+  }
+  state.catalogByName = map;
+}
+
+async function ensureAislesFor(retailerId) {
+  if (!retailerId) return [];
+  if (state.aislesByRetailer.has(retailerId)) return state.aislesByRetailer.get(retailerId);
+  const r = await api("/api/aisles?retailer=" + encodeURIComponent(retailerId), { auth: false });
+  const aisles = r.aisles || [];
+  state.aislesByRetailer.set(retailerId, aisles);
+  return aisles;
+}
+
+/* ============ Rendering ============ */
 function render() {
   const list = $("list");
   list.innerHTML = "";
@@ -506,83 +616,167 @@ function render() {
   document.body.classList.toggle("shopping", state.shopping);
   $("shopBtn").textContent = state.shopping ? "← Back to List" : "🛍️ Start Shopping";
   $("shopBtn").className = state.shopping ? "secondary" : "";
-  $("undoBtn").disabled = !lastAction || !state.items.some(i => i.id === lastAction.id);
+  $("undoBtn").disabled = !state.lastAction || !state.items.some(i => i.id === state.lastAction.id);
   $("removeTickedBtn").disabled = !state.items.some(i => i.checked);
   $("addRow").style.display = state.shopping ? "none" : "";
   $("shoppingBanner").style.display = state.shopping ? "flex" : "none";
 
   const total = state.items.length;
   const done = state.items.filter(i => i.checked).length;
-  $("statLine").textContent = total === 0
-    ? ""
-    : state.shopping
-      ? `${done} of ${total} collected`
-      : `${total} item${total === 1 ? "" : "s"} on list`;
+  $("statLine").textContent = state.loading
+    ? "Loading…"
+    : total === 0 ? ""
+    : state.shopping ? `${done} of ${total} collected`
+    : `${total} item${total === 1 ? "" : "s"} on list`;
 
+  if (state.loading && total === 0) {
+    list.innerHTML = `<div class="empty"><span class="emoji">⏳</span>Loading your list…</div>`;
+    return;
+  }
   if (total === 0) {
     list.innerHTML = `<div class="empty"><span class="emoji">🛒</span>Your list is empty.<br>Type or pick an item above to get started.</div>`;
     return;
   }
 
-  const groups = {};
-  for (const it of state.items) (groups[it.aisle] ||= []).push(it);
-  const orderedZones = ZONES.filter(z => groups[z.id]).sort((a,b) => a.order - b.order);
-  const unknownItems = groups["unknown"] || [];
-
-  function renderItemRow(it, hasMap) {
-    const row = document.createElement("div");
-    row.className = "item" + (it.checked ? " checked" : "");
-    const findBtn = (state.shopping && hasMap)
-      ? `<button class="find-btn" data-find="${it.id}">📍 Find</button>`
-      : "";
-    row.innerHTML = `
-      <div class="check" data-id="${it.id}">${it.checked ? "✓" : ""}</div>
-      <div class="name">${escapeHtml(it.name)}</div>
-      ${findBtn}
-      <button class="del-btn" data-del="${it.id}" aria-label="Delete">✕</button>
-    `;
-    return row;
+  // Group by retailer; within each, group by aisle (or none for online).
+  const groupsByRetailer = new Map();
+  for (const it of state.items) {
+    const rid = it.retailer_id || "other";
+    if (!groupsByRetailer.has(rid)) groupsByRetailer.set(rid, []);
+    groupsByRetailer.get(rid).push(it);
   }
 
-  for (const zone of orderedZones) {
-    const group = document.createElement("div");
-    group.className = "aisle-group";
-    const subText = zone.sub ? ` — ${zone.sub}` : "";
-    group.innerHTML = `<div class="aisle-header">${zone.name}${subText}</div>`;
-    for (const it of groups[zone.id]) group.appendChild(renderItemRow(it, true));
-    list.appendChild(group);
-  }
+  // Retailer order: online first, then by position, "other" last
+  const retailerOrder = [...state.retailers].sort((a, b) => {
+    if (a.kind === "online" && b.kind !== "online") return -1;
+    if (b.kind === "online" && a.kind !== "online") return 1;
+    if (a.id === "other") return 1;
+    if (b.id === "other") return -1;
+    return a.position - b.position;
+  });
 
-  if (unknownItems.length) {
-    const group = document.createElement("div");
-    group.className = "aisle-group";
-    group.innerHTML = `<div class="aisle-header" style="color:var(--muted);border-bottom-color:var(--border)">Other — uncategorised</div>`;
-    for (const it of unknownItems) group.appendChild(renderItemRow(it, false));
-    list.appendChild(group);
+  for (const r of retailerOrder) {
+    const group = groupsByRetailer.get(r.id);
+    if (!group || !group.length) continue;
+    list.appendChild(renderRetailerGroup(r, group));
+    groupsByRetailer.delete(r.id);
+  }
+  // Any leftover (unknown retailer ids)
+  for (const [rid, items] of groupsByRetailer) {
+    const r = { id: rid, name: rid || "Unknown", color: "#6b7280", kind: "physical" };
+    list.appendChild(renderRetailerGroup(r, items));
   }
 }
+
+function renderRetailerGroup(retailer, items) {
+  const wrap = document.createElement("div");
+  wrap.className = "retailer-group";
+  const isOnline = retailer.kind === "online";
+  const isOther = retailer.id === "other";
+
+  const header = document.createElement("div");
+  header.className = "retailer-header";
+  header.innerHTML = `
+    <span class="retailer-dot" style="background:${retailer.color || "#6b7280"}"></span>
+    <span class="retailer-name">${escapeHtml(retailer.name)}</span>
+    ${isOnline ? `<span class="retailer-kind-chip online">Online</span>` : ""}
+    ${isOther ? `<span class="retailer-kind-chip">Unassigned</span>` : ""}
+  `;
+  wrap.appendChild(header);
+
+  if (isOnline || isOther) {
+    // Flat list (no aisles)
+    for (const it of items) wrap.appendChild(renderItem(it, retailer, false));
+    return wrap;
+  }
+
+  // Group by aisle, sorted by aisle position
+  const byAisle = new Map();
+  for (const it of items) {
+    const key = it.aisle_id || "_no_aisle_";
+    if (!byAisle.has(key)) byAisle.set(key, []);
+    byAisle.get(key).push(it);
+  }
+  const aisleEntries = [...byAisle.entries()].sort((a, b) => {
+    const pa = a[1][0].aisle_position ?? 9999;
+    const pb = b[1][0].aisle_position ?? 9999;
+    return pa - pb;
+  });
+
+  for (const [aisleId, group] of aisleEntries) {
+    const aWrap = document.createElement("div");
+    aWrap.className = "aisle-group";
+    const headRow = group[0];
+    const subText = headRow.aisle_sub ? ` — ${headRow.aisle_sub}` : "";
+    aWrap.innerHTML = `<div class="aisle-header">${aisleId === "_no_aisle_" ? "No aisle set" : escapeHtml(headRow.aisle_name) + subText}</div>`;
+    for (const it of group) aWrap.appendChild(renderItem(it, retailer, true));
+    wrap.appendChild(aWrap);
+  }
+  return wrap;
+}
+
+function renderItem(it, retailer, hasAisle) {
+  const row = document.createElement("div");
+  row.className = "item" + (it.checked ? " checked" : "");
+  const isOnline = retailer.kind === "online";
+  const isOther = retailer.id === "other";
+
+  const findBtn = (state.shopping && hasAisle && !isOnline)
+    ? `<button class="find-btn" data-find="${it.id}">📍 Find</button>` : "";
+  const linkBtn = (isOnline && it.online_order_link)
+    ? `<a class="link-btn" href="${escapeAttr(it.online_order_link)}" target="_blank" rel="noopener noreferrer">🔗</a>` : "";
+  // Show "Allocate" button: prominent on Other/Online (where it's needed),
+  // available as a small "↻" on assigned items too.
+  let assignBtn = "";
+  if (isOther || isOnline) {
+    assignBtn = `<button class="assign-btn" data-assign="${it.id}">Allocate</button>`;
+  } else if (!state.shopping) {
+    assignBtn = `<button class="assign-btn" data-assign="${it.id}" title="Re-allocate" style="border-style:dotted;font-size:14px;padding:6px 8px">↻</button>`;
+  }
+
+  const badges = [];
+  if (it.source === "pre-do") badges.push(`<span class="badge predo">Pre-Do</span>`);
+  if (it.fulfilment_mode === "online" && !isOnline) badges.push(`<span class="badge">Online</span>`);
+  const badgeHtml = badges.length ? `<span class="badges">${badges.join("")}</span>` : "";
+
+  row.innerHTML = `
+    <div class="check" data-id="${it.id}">${it.checked ? "✓" : ""}</div>
+    <div class="name">${escapeHtml(it.name)} ${badgeHtml}</div>
+    ${linkBtn}
+    ${findBtn}
+    ${assignBtn}
+    <button class="del-btn" data-del="${it.id}" aria-label="Delete">✕</button>
+  `;
+  return row;
+}
+
 function escapeHtml(s) {
+  s = (s ?? "").toString();
   return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+function escapeAttr(s) { return escapeHtml(s); }
 
 /* ============ Autocomplete ============ */
 const inputEl = $("itemInput");
 const suggBox = $("suggestions");
 let activeSugg = -1;
-let lastTyped = "";  // user-typed prefix (without ghost completion)
-let lastInputType = "";
+let lastTyped = "";
+
+function catalogProducts() {
+  // Deduped product list for suggestions
+  return [...state.catalogByName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function rankMatches(q) {
   const lq = q.trim().toLowerCase();
   if (!lq) return [];
+  const all = catalogProducts();
   const starts = [], contains = [];
-  for (const c of CATALOG) {
+  for (const c of all) {
     const ln = c.name.toLowerCase();
     if (ln.startsWith(lq)) starts.push(c);
     else if (ln.includes(lq)) contains.push(c);
   }
-  starts.sort((a,b) => a.name.localeCompare(b.name));
-  contains.sort((a,b) => a.name.localeCompare(b.name));
   return [...starts, ...contains].slice(0, 6);
 }
 
@@ -593,9 +787,9 @@ function renderSuggestions(matches, query) {
     const div = document.createElement("div");
     div.className = "suggestion" + (i === activeSugg ? " active" : "");
     div.dataset.name = m.name;
-    const aisle = zoneById(m.aisle);
-    const sub = aisle.sub ? ` (${aisle.sub})` : "";
-    div.innerHTML = `<span class="prod">${highlightMatch(m.name, query)}</span><span class="ais">${aisle.name}${sub}</span>`;
+    const retailer = state.retailers.find(r => r.id === m.retailer_id);
+    const retailerLabel = retailer ? retailer.name : "";
+    div.innerHTML = `<span class="prod">${highlightMatch(m.name, query)}</span><span class="ais">${escapeHtml(retailerLabel)}</span>`;
     suggBox.appendChild(div);
   });
   suggBox.classList.add("open");
@@ -613,40 +807,28 @@ function highlightMatch(name, query) {
 }
 
 function applyInlineGhost(typedRaw) {
-  // Inline ghost text: input value = matched full name, with the suffix selected.
-  // User keeps typing → selection is replaced. Enter → whole name is added.
-  const typed = typedRaw;
-  if (!typed) return;
-  const matches = rankMatches(typed);
-  const ghostable = matches.find(m => m.name.toLowerCase().startsWith(typed.toLowerCase()));
-  if (ghostable && ghostable.name.length > typed.length) {
-    inputEl.value = ghostable.name.slice(0, typed.length) + ghostable.name.slice(typed.length);
-    // Preserve user's casing for the typed prefix:
-    inputEl.value = typed + ghostable.name.slice(typed.length);
-    inputEl.setSelectionRange(typed.length, ghostable.name.length);
+  if (!typedRaw) return;
+  const matches = rankMatches(typedRaw);
+  const ghostable = matches.find(m => m.name.toLowerCase().startsWith(typedRaw.toLowerCase()));
+  if (ghostable && ghostable.name.length > typedRaw.length) {
+    inputEl.value = typedRaw + ghostable.name.slice(typedRaw.length);
+    inputEl.setSelectionRange(typedRaw.length, ghostable.name.length);
   }
 }
 
 inputEl.addEventListener("input", (e) => {
-  lastInputType = e.inputType || "";
-  // The user's intended typed prefix: everything before any selection (since
-  // we may have just inserted ghost text). On 'input', the input.value already
-  // reflects the change after the user's edit.
   const value = inputEl.value;
-  // If it's a deletion event, treat the current value as plain typed (no ghost).
-  if (lastInputType.startsWith("delete")) {
+  const t = (e.inputType || "");
+  if (t.startsWith("delete")) {
     lastTyped = value;
     activeSugg = 0;
     renderSuggestions(rankMatches(value), value);
     return;
   }
-  // For insertions, try to extract what the user actually typed.
-  // The selectionStart points at end of typed prefix when ghost is selected.
   const typedPrefix = inputEl.value.slice(0, inputEl.selectionStart);
   lastTyped = typedPrefix || value;
   activeSugg = 0;
   renderSuggestions(rankMatches(lastTyped), lastTyped);
-  // Apply ghost only on insert
   applyInlineGhost(lastTyped);
 });
 
@@ -654,11 +836,7 @@ inputEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     suggBox.classList.remove("open");
-    if (addItem(inputEl.value)) {
-      inputEl.value = "";
-      lastTyped = "";
-      activeSugg = -1;
-    }
+    addItem(inputEl.value).then(ok => { if (ok) { inputEl.value = ""; lastTyped = ""; activeSugg = -1; } });
     return;
   }
   if (e.key === "ArrowDown") {
@@ -681,9 +859,7 @@ inputEl.addEventListener("keydown", (e) => {
     inputEl.setSelectionRange(lastTyped.length, inputEl.value.length);
     return;
   }
-  if (e.key === "Escape") {
-    suggBox.classList.remove("open");
-  }
+  if (e.key === "Escape") suggBox.classList.remove("open");
 });
 
 inputEl.addEventListener("focus", () => {
@@ -693,266 +869,240 @@ inputEl.addEventListener("focus", () => {
   }
 });
 inputEl.addEventListener("blur", () => {
-  // small delay to allow click on a suggestion
   setTimeout(() => suggBox.classList.remove("open"), 150);
 });
 
 suggBox.addEventListener("mousedown", (e) => {
-  // mousedown rather than click so it fires before blur
   const s = e.target.closest(".suggestion");
   if (!s) return;
   e.preventDefault();
-  if (addItem(s.dataset.name)) {
-    inputEl.value = "";
-    lastTyped = "";
-    activeSugg = -1;
-    suggBox.classList.remove("open");
-    inputEl.focus();
-  }
+  addItem(s.dataset.name).then(ok => {
+    if (ok) { inputEl.value = ""; lastTyped = ""; activeSugg = -1; suggBox.classList.remove("open"); inputEl.focus(); }
+  });
 });
 
-/* ============ Item actions ============ */
-function findCatalogMatch(query) {
-  if (!query) return null;
-  const q = query.trim().toLowerCase();
-  if (!q) return null;
-  const exact = CATALOG.find(c => c.name.toLowerCase() === q);
-  if (exact) return exact;
-  return null;
-}
+$("chevronBtn").addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  if (suggBox.classList.contains("open")) { suggBox.classList.remove("open"); return; }
+  const q = inputEl.value.trim();
+  const matches = q ? rankMatches(q) : catalogProducts();
+  activeSugg = 0;
+  renderSuggestions(matches, q);
+  inputEl.focus();
+});
 
-/* Keyword-based aisle inference for free-text items. Order matters:
-   first matching rule wins, so put more specific keywords first. */
-const AISLE_RULES = [
-  [["milk","cream","cheese","yog","butter","custard","maas","feta"], "dairy"],
-  [["bread","roll","muffin","croissant","bun","loaf","bagel","baguette","pita","pita bread"], "bakery"],
-  [["ham","salami","olive","russian","viennas","pate","polony"], "deli"],
-  [["beef","lamb","pork","chicken","mince","sausage","steak","bacon","wors","rib","liver"], "butchery"],
-  [["frozen","ice cream","ice-cream","fish finger"], "frozen"],
-  [["apple","banana","orange","tomato","onion","lettuce","carrot","potato","cucumber","spinach","pepper","lemon","lime","grape","avocado","mango","pear","cabbage","broccoli","mushroom","strawberry","fruit","veg","ginger","garlic","chilli","leek","beetroot","pumpkin","butternut"], "produce"],
-  [["chip","chocolate","sweet","candy","biscuit","cracker","slab","crisps","pretzel","nuts"], "a1"],
-  [["cereal","oat","muesli","weetbix","cornflake","pronutro","granola","porridge"], "a2"],
-  [["tin","tinned","canned","baked bean","pilchard","tuna","soup","tomato sauce","peach","corn"], "a3"],
-  [["pasta","rice","noodle","spaghetti","macaroni","cous","quinoa","lasagne"], "a4"],
-  [["soap","detergent","bleach","cleaner","polish","sponge","washing","dishwash","handy andy","domestos","pine","mr min"], "a5"],
-  [["shampoo","toothpaste","deodorant","razor","tampon","conditioner","floss","brush","sanitary","cotton wool","plaster","panty"], "a6"],
-  [["tea","coffee","juice","water","cola","wine","beer","cooldrink","cool drink","fanta","sprite","rooibos"], "a7"],
-  [["diaper","nappy","baby","pet","dog","cat","puppy","kitten","catfood","dogfood","biltong"], "a8"],
-  [["gum","mints","chappies"], "checkout"],
-];
-function guessAisle(name) {
-  const n = name.toLowerCase();
-  for (const [kws, aisle] of AISLE_RULES) {
-    for (const k of kws) if (n.includes(k)) return aisle;
-  }
-  return "unknown";
-}
-
-function addItem(query) {
+/* ============ Item actions (server-backed) ============ */
+async function addItem(query) {
   if (!query) return false;
   const trimmed = query.trim();
   if (!trimmed) return false;
-  const cat = findCatalogMatch(trimmed);
-  let name, aisle;
-  if (cat) {
-    name = cat.name;
-    aisle = cat.aisle;
-  } else {
-    // Free-text entry: keep user's wording, guess the aisle.
-    name = trimmed.replace(/\s+/g, " ");
-    aisle = guessAisle(name);
+  if (!config.token) { showConfigBanner("Set your token in Settings to add items."); $("settingsModal").classList.add("open"); return false; }
+  // Skip dup if already on list (same name, case-insensitive)
+  if (state.items.some(i => i.name.toLowerCase() === trimmed.toLowerCase())) return false;
+  try {
+    const r = await api("/api/list/add", { method: "POST", body: { name: trimmed } });
+    state.lastAction = { kind: "add", id: r.id };
+    await refreshList();
+    return true;
+  } catch (err) {
+    alert("Add failed: " + err.message);
+    return false;
   }
-  if (state.items.some(i => i.name.toLowerCase() === name.toLowerCase())) return false;
-  const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-  state.items.push({ id, name, aisle, checked: false });
-  lastAction = { kind: "add", id };
-  saveState();
-  render();
-  return true;
 }
-function toggleItem(id) {
+
+async function toggleItem(id) {
   const it = state.items.find(i => i.id === id);
   if (!it) return;
-  it.checked = !it.checked;
-  lastAction = { kind: "tick", id };
-  saveState();
-  render();
+  const next = it.checked ? 0 : 1;
+  // optimistic
+  it.checked = next; render();
+  state.lastAction = { kind: "tick", id };
+  try {
+    await api("/api/list/check", { method: "POST", body: { id, checked: !!next } });
+  } catch (err) {
+    it.checked = next ? 0 : 1; render();
+    alert("Couldn't update: " + err.message);
+  }
 }
-function deleteItem(id) {
-  if (!state.items.some(i => i.id === id)) return;
+
+async function deleteItem(id) {
+  const before = state.items;
   state.items = state.items.filter(i => i.id !== id);
-  if (lastAction && lastAction.id === id) lastAction = null;
-  saveState();
+  if (state.lastAction?.id === id) state.lastAction = null;
   render();
+  try {
+    await api("/api/list/delete", { method: "POST", body: { id } });
+  } catch (err) {
+    state.items = before; render();
+    alert("Delete failed: " + err.message);
+  }
 }
-function clearList() {
+
+async function clearList() {
   if (state.items.length === 0) return;
   if (!confirm("Are you sure you want to clear the entire list? This cannot be undone.")) return;
-  state.items = [];
-  state.shopping = false;
-  lastAction = null;
-  saveState();
-  render();
+  const ids = state.items.map(i => i.id);
+  for (const id of ids) {
+    try { await api("/api/list/delete", { method: "POST", body: { id } }); } catch (e) {}
+  }
+  state.lastAction = null;
+  await refreshList();
 }
-function removeTicked() {
-  const tickedCount = state.items.filter(i => i.checked).length;
-  if (tickedCount === 0) return;
-  state.items = state.items.filter(i => !i.checked);
-  lastAction = null;
-  saveState();
-  render();
+
+async function removeTicked() {
+  const ticked = state.items.filter(i => i.checked);
+  if (!ticked.length) return;
+  for (const it of ticked) {
+    try { await api("/api/list/delete", { method: "POST", body: { id: it.id } }); } catch (e) {}
+  }
+  state.lastAction = null;
+  await refreshList();
 }
+
+async function undo() {
+  if (!state.lastAction) return;
+  const a = state.lastAction;
+  state.lastAction = null;
+  try {
+    if (a.kind === "add") {
+      await api("/api/list/delete", { method: "POST", body: { id: a.id } });
+    } else if (a.kind === "tick") {
+      const it = state.items.find(i => i.id === a.id);
+      if (it) await api("/api/list/check", { method: "POST", body: { id: a.id, checked: !it.checked } });
+    }
+    await refreshList();
+  } catch (err) { alert("Undo failed: " + err.message); }
+}
+
 function toggleShopping() {
   state.shopping = !state.shopping;
-  lastAction = null;
-  saveState();
+  state.lastAction = null;
   render();
 }
 
-/* ============ Share & Print ============ */
-function buildShareText() {
-  if (state.items.length === 0) return "Shop Wise — empty list";
-  const groups = {};
-  for (const it of state.items) (groups[it.aisle] ||= []).push(it);
-  const ordered = ZONES.filter(z => groups[z.id]).sort((a, b) => a.order - b.order);
-  let txt = "🛒 Shop Wise list\n";
-  for (const z of ordered) {
-    txt += `\n${z.name}${z.sub ? " — " + z.sub : ""}\n`;
-    for (const it of groups[z.id]) txt += `  ${it.checked ? "☑" : "☐"} ${it.name}\n`;
-  }
-  return txt;
-}
-async function shareList() {
-  const text = buildShareText();
-  if (navigator.share) {
-    try { await navigator.share({ title: "Shop Wise list", text }); return; } catch (e) {}
-  }
+async function refreshList() {
   try {
-    await navigator.clipboard.writeText(text);
-    alert("List copied to clipboard.");
-  } catch (e) {
-    prompt("Copy your list:", text);
+    const r = await api("/api/list", { auth: false });
+    state.items = r.items || [];
+    render();
+  } catch (err) { /* ignore */ }
+}
+
+/* ============ Allocate retailer modal ============ */
+let allocItemId = null;
+async function openAllocate(itemId) {
+  const it = state.items.find(i => i.id === itemId);
+  if (!it) return;
+  allocItemId = itemId;
+  $("allocateTitle").textContent = "Allocate: " + it.name;
+
+  const sel = $("allocRetailer");
+  sel.innerHTML = "";
+  for (const r of state.retailers) {
+    const opt = document.createElement("option");
+    opt.value = r.id;
+    opt.textContent = `${r.name} (${r.kind})`;
+    if (r.id === it.retailer_id) opt.selected = true;
+    sel.appendChild(opt);
+  }
+
+  await populateAllocAisles(sel.value, it.aisle_id);
+  $("allocateModal").classList.add("open");
+}
+async function populateAllocAisles(retailerId, currentAisle) {
+  const sel = $("allocAisle");
+  sel.innerHTML = `<option value="">(none)</option>`;
+  const retailer = state.retailers.find(r => r.id === retailerId);
+  if (!retailer || retailer.kind === "online" || retailer.id === "other") { sel.disabled = true; return; }
+  sel.disabled = false;
+  const aisles = await ensureAislesFor(retailerId);
+  for (const a of aisles) {
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = a.name + (a.sub ? " — " + a.sub : "");
+    if (a.id === currentAisle) opt.selected = true;
+    sel.appendChild(opt);
   }
 }
-function printList() { window.print(); }
+$("allocRetailer").addEventListener("change", (e) => populateAllocAisles(e.target.value, null));
+$("allocCancel").addEventListener("click", () => $("allocateModal").classList.remove("open"));
+$("allocSave").addEventListener("click", async () => {
+  if (!allocItemId) return;
+  const retailerId = $("allocRetailer").value;
+  const aisleId = $("allocAisle").value || null;
+  try {
+    await api("/api/list/assign", { method: "POST", body: { id: allocItemId, retailerId, aisleId } });
+    $("allocateModal").classList.remove("open");
+    await refreshList();
+  } catch (err) { alert("Allocate failed: " + err.message); }
+});
 
-/* ============ Finder map (SVG) with random pin + smart routing ============ */
+/* ============ Finder map ============ */
 function svgEl(name, attrs = {}) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", name);
   for (const k in attrs) el.setAttribute(k, attrs[k]);
   return el;
 }
+const TOP_CORRIDOR_Y = 58, BOTTOM_CORRIDOR_Y = 263;
+const ENTRANCE = { x: 80, y: 315, w: 60, h: 20 };
 
-function pickRandomPin() {
-  // Weighted random spawn:
-  //  40% mid-aisle (random aisle, random y inside the aisle strip)
-  //  25% bottom corridor
-  //  15% top corridor
-  //  20% inside a perimeter zone (Bakery/Deli/Butchery/Dairy/Frozen)
+function pickRandomPin(aisles) {
   const r = Math.random();
   if (r < 0.40) {
-    const aisles = ZONES.filter(z => z.kind === "aisle");
-    const a = aisles[Math.floor(Math.random() * aisles.length)];
-    return {
-      x: a.x + a.w / 2,
-      y: a.y + 6 + Math.random() * (a.h - 12),
-      _zone: a.id,
-    };
+    const asles = aisles.filter(z => z.kind === "aisle");
+    if (asles.length) {
+      const a = asles[Math.floor(Math.random() * asles.length)];
+      return { x: a.map_x + a.map_w / 2, y: a.map_y + 6 + Math.random() * (a.map_h - 12) };
+    }
   }
-  if (r < 0.65) {
-    return { x: 20 + Math.random() * 180, y: BOTTOM_CORRIDOR_Y };
+  if (r < 0.65) return { x: 20 + Math.random() * 180, y: BOTTOM_CORRIDOR_Y };
+  if (r < 0.80) return { x: 20 + Math.random() * 180, y: TOP_CORRIDOR_Y };
+  const perims = aisles.filter(z => z.kind === "perim");
+  if (perims.length) {
+    const p = perims[Math.floor(Math.random() * perims.length)];
+    return { x: p.map_x + 6 + Math.random() * (p.map_w - 12), y: p.map_y + p.map_h / 2 };
   }
-  if (r < 0.80) {
-    return { x: 20 + Math.random() * 180, y: TOP_CORRIDOR_Y };
-  }
-  const perims = ZONES.filter(z => z.kind === "perim");
-  const p = perims[Math.floor(Math.random() * perims.length)];
-  return {
-    x: p.x + 6 + Math.random() * (p.w - 12),
-    y: p.y + p.h / 2,
-    _zone: p.id,
-  };
+  return { x: 110, y: BOTTOM_CORRIDOR_Y };
 }
 
-function pinSide(pin) {
-  // Which corridor is the pin closer to?
-  return Math.abs(pin.y - TOP_CORRIDOR_Y) < Math.abs(pin.y - BOTTOM_CORRIDOR_Y) ? "top" : "bottom";
-}
-function targetSide(zone) {
-  if (zone.kind === "aisle") return null; // either corridor works
-  return zone.side; // top or bottom
-}
-
-function buildRoute(pin, target, targetZone) {
+function buildRoute(pin, target, zone) {
   const pts = [{ x: pin.x, y: pin.y }];
-  const tSide = targetSide(targetZone);
-  let useCorridor;
-
-  if (tSide === "top") useCorridor = "top";
-  else if (tSide === "bottom") useCorridor = "bottom";
-  else useCorridor = pinSide(pin); // aisle target → use whichever corridor is closer to the pin
-
-  const corridorY = useCorridor === "top" ? TOP_CORRIDOR_Y : BOTTOM_CORRIDOR_Y;
-
-  // 1) Get pin out to that corridor (vertically, at pin.x)
-  if (Math.abs(pin.y - corridorY) > 1) {
-    pts.push({ x: pin.x, y: corridorY });
-  }
-  // 2) Travel along corridor to target's column
+  const tSide = zone.kind === "aisle" ? null : zone.side;
+  const useTop = tSide === "top" || (tSide == null && Math.abs(pin.y - TOP_CORRIDOR_Y) < Math.abs(pin.y - BOTTOM_CORRIDOR_Y));
+  const corridorY = useTop ? TOP_CORRIDOR_Y : BOTTOM_CORRIDOR_Y;
+  if (Math.abs(pin.y - corridorY) > 1) pts.push({ x: pin.x, y: corridorY });
   pts.push({ x: target.x, y: corridorY });
-  // 3) Into the target
   pts.push({ x: target.x, y: target.y });
   return pts;
 }
 
-function drawMap(highlightZoneId) {
+function drawMap(aisles, highlightId) {
   const svg = $("finderMap");
   svg.innerHTML = "";
-
-  // Corridor strips
   svg.appendChild(svgEl("rect", { x: 8, y: TOP_CORRIDOR_Y - 4, width: 204, height: 8, fill: "#ffffff", opacity: 0.6 }));
   svg.appendChild(svgEl("rect", { x: 8, y: BOTTOM_CORRIDOR_Y - 4, width: 204, height: 8, fill: "#ffffff", opacity: 0.6 }));
 
-  for (const z of ZONES) {
-    const isHi = z.id === highlightZoneId;
+  for (const z of aisles) {
+    const isHi = z.id === highlightId;
     svg.appendChild(svgEl("rect", {
-      x: z.x, y: z.y, width: z.w, height: z.h,
-      rx: 3, ry: 3,
+      x: z.map_x, y: z.map_y, width: z.map_w, height: z.map_h, rx: 3, ry: 3,
       fill: isHi ? "#2c7a4b" : "white",
       stroke: isHi ? "#1f5634" : "#d1d5db",
       "stroke-width": isHi ? 2 : 1,
     }));
-
+    const cx = z.map_x + z.map_w / 2, cy = z.map_y + z.map_h / 2;
     if (z.kind === "aisle") {
-      const cx = z.x + z.w / 2, cy = z.y + z.h / 2;
-      const t = svgEl("text", {
-        x: cx, y: cy, "text-anchor": "middle",
-        "font-size": 9, "font-weight": 600,
-        fill: isHi ? "white" : "#374151",
-        transform: `rotate(-90 ${cx} ${cy})`,
-      });
+      const t = svgEl("text", { x: cx, y: cy, "text-anchor": "middle", "font-size": 9, "font-weight": 600, fill: isHi ? "white" : "#374151", transform: `rotate(-90 ${cx} ${cy})` });
       t.textContent = z.name === "Produce" ? "Produce" : z.name.replace("Aisle ", "A");
       svg.appendChild(t);
     } else {
-      const t = svgEl("text", {
-        x: z.x + z.w / 2, y: z.y + z.h / 2 + 3,
-        "text-anchor": "middle", "font-size": 9, "font-weight": 600,
-        fill: isHi ? "white" : "#374151",
-      });
+      const t = svgEl("text", { x: cx, y: cy + 3, "text-anchor": "middle", "font-size": 9, "font-weight": 600, fill: isHi ? "white" : "#374151" });
       t.textContent = z.name;
       svg.appendChild(t);
     }
   }
-
-  // Entrance
-  svg.appendChild(svgEl("rect", {
-    x: ENTRANCE.x, y: ENTRANCE.y, width: ENTRANCE.w, height: ENTRANCE.h,
-    rx: 3, ry: 3, fill: "#fef3c7", stroke: "#92400e", "stroke-width": 1,
-  }));
-  const entText = svgEl("text", {
-    x: ENTRANCE.x + ENTRANCE.w / 2, y: ENTRANCE.y + 13,
-    "text-anchor": "middle", "font-size": 9, "font-weight": 700, fill: "#92400e",
-  });
+  svg.appendChild(svgEl("rect", { x: ENTRANCE.x, y: ENTRANCE.y, width: ENTRANCE.w, height: ENTRANCE.h, rx: 3, ry: 3, fill: "#fef3c7", stroke: "#92400e", "stroke-width": 1 }));
+  const entText = svgEl("text", { x: ENTRANCE.x + ENTRANCE.w / 2, y: ENTRANCE.y + 13, "text-anchor": "middle", "font-size": 9, "font-weight": 700, fill: "#92400e" });
   entText.textContent = "🚪 Entrance";
   svg.appendChild(entText);
 }
@@ -960,51 +1110,103 @@ function drawMap(highlightZoneId) {
 function drawRouteAndPin(pin, route) {
   const svg = $("finderMap");
   const pts = route.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  svg.appendChild(svgEl("polyline", {
-    points: pts,
-    fill: "none", stroke: "#f59e0b",
-    "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round",
-    "stroke-dasharray": "4 3",
-  }));
+  svg.appendChild(svgEl("polyline", { points: pts, fill: "none", stroke: "#f59e0b", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-dasharray": "4 3" }));
   const dest = route[route.length - 1];
-  svg.appendChild(svgEl("circle", {
-    cx: dest.x, cy: dest.y, r: 4,
-    fill: "#2c7a4b", stroke: "white", "stroke-width": 1.5,
-  }));
-  svg.appendChild(svgEl("circle", {
-    cx: pin.x, cy: pin.y, r: 6,
-    fill: "#2563eb", stroke: "white", "stroke-width": 2,
-  }));
-  const pinLabel = svgEl("text", {
-    x: pin.x, y: pin.y - 9,
-    "text-anchor": "middle", "font-size": 8, "font-weight": 700, fill: "#1e40af",
-  });
-  pinLabel.textContent = "You";
-  svg.appendChild(pinLabel);
+  svg.appendChild(svgEl("circle", { cx: dest.x, cy: dest.y, r: 4, fill: "#2c7a4b", stroke: "white", "stroke-width": 1.5 }));
+  svg.appendChild(svgEl("circle", { cx: pin.x, cy: pin.y, r: 6, fill: "#2563eb", stroke: "white", "stroke-width": 2 }));
+  const t = svgEl("text", { x: pin.x, y: pin.y - 9, "text-anchor": "middle", "font-size": 8, "font-weight": 700, fill: "#1e40af" });
+  t.textContent = "You";
+  svg.appendChild(t);
 }
 
-function openFinder(itemId) {
+async function openFinder(itemId) {
   const it = state.items.find(i => i.id === itemId);
   if (!it) return;
-  const zone = zoneById(it.aisle);
-  $("finderTitle").textContent = `Finding: ${it.name}`;
-  const subText = zone.sub ? ` — ${zone.sub}` : "";
-  $("finderLoc").textContent = `📍 ${zone.name}${subText}`;
+  $("finderTitle").textContent = "Finding: " + it.name;
+  const retailer = state.retailers.find(r => r.id === it.retailer_id);
+  const retailerName = retailer?.name || "Unknown";
+  $("finderLoc").textContent = `📍 ${retailerName} · ${it.aisle_name || "?"}${it.aisle_sub ? " — " + it.aisle_sub : ""}`;
 
-  drawMap(zone.id);
-  const target = zoneCenter(zone);
-  const pin = pickRandomPin();
+  const body = $("finderBody");
+  if (!it.aisle_id || !it.retailer_id || retailer?.kind === "online") {
+    body.innerHTML = `<div class="no-map-msg">No in-store map available for this item.</div>`;
+    $("finderModal").classList.add("open");
+    return;
+  }
+  body.innerHTML = `
+    <div class="map-wrap"><svg id="finderMap" class="map-svg" viewBox="0 0 220 340" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div class="legend">
+      <span><span class="dot" style="background:#2563eb"></span>You are here</span>
+      <span><span class="dot" style="background:#2c7a4b"></span>Item location</span>
+      <span><span class="dot" style="background:#f59e0b"></span>Walking route</span>
+    </div>
+  `;
+
+  const aisles = await ensureAislesFor(it.retailer_id);
+  const zone = aisles.find(a => a.id === it.aisle_id);
+  if (!zone || zone.map_x == null) {
+    body.innerHTML = `<div class="no-map-msg">This aisle isn't mapped yet.</div>`;
+    $("finderModal").classList.add("open");
+    return;
+  }
+  drawMap(aisles, zone.id);
+  const target = { x: zone.map_x + zone.map_w / 2, y: zone.map_y + zone.map_h / 2 };
+  const pin = pickRandomPin(aisles);
   const route = buildRoute(pin, target, zone);
   drawRouteAndPin(pin, route);
-
   $("finderModal").classList.add("open");
 }
-function closeFinder() { $("finderModal").classList.remove("open"); }
+$("finderClose").addEventListener("click", () => $("finderModal").classList.remove("open"));
+$("finderModal").addEventListener("click", (e) => { if (e.target.id === "finderModal") $("finderModal").classList.remove("open"); });
 
-/* ============ Wire up ============ */
-$("addBtn").addEventListener("click", () => {
-  if (addItem(inputEl.value)) { inputEl.value = ""; lastTyped = ""; inputEl.focus(); }
+/* ============ Share & print ============ */
+function buildShareText() {
+  if (state.items.length === 0) return "Shop Wise — empty list";
+  const groups = {};
+  for (const it of state.items) {
+    const key = (it.retailer_name || "Other") + (it.aisle_name ? " · " + it.aisle_name : "");
+    (groups[key] ||= []).push(it);
+  }
+  let txt = "🛒 Shop Wise list\n";
+  for (const k of Object.keys(groups)) {
+    txt += `\n${k}\n`;
+    for (const it of groups[k]) txt += `  ${it.checked ? "☑" : "☐"} ${it.name}\n`;
+  }
+  return txt;
+}
+async function shareList() {
+  const text = buildShareText();
+  if (navigator.share) { try { await navigator.share({ title: "Shop Wise list", text }); return; } catch (e) {} }
+  try { await navigator.clipboard.writeText(text); alert("List copied to clipboard."); }
+  catch (e) { prompt("Copy your list:", text); }
+}
+
+/* ============ Settings ============ */
+function showConfigBanner(msg) {
+  $("configBannerMsg").textContent = msg;
+  $("configBanner").style.display = "flex";
+}
+function hideConfigBanner() { $("configBanner").style.display = "none"; }
+
+$("settingsBtn").addEventListener("click", openSettings);
+$("configBanner").addEventListener("click", openSettings);
+function openSettings() {
+  $("settingsApiUrl").value = config.apiUrl;
+  $("settingsToken").value = config.token;
+  $("settingsModal").classList.add("open");
+}
+$("settingsCancel").addEventListener("click", () => $("settingsModal").classList.remove("open"));
+$("settingsSave").addEventListener("click", async () => {
+  config.apiUrl = $("settingsApiUrl").value.trim() || DEFAULT_API;
+  config.token = $("settingsToken").value.trim();
+  saveConfig(config);
+  $("settingsModal").classList.remove("open");
+  if (config.token) hideConfigBanner();
+  await refreshAll();
 });
+
+/* ============ Wire-up ============ */
+$("addBtn").addEventListener("click", () => addItem(inputEl.value).then(ok => { if (ok) { inputEl.value = ""; lastTyped = ""; inputEl.focus(); } }));
 $("shopBtn").addEventListener("click", toggleShopping);
 $("clearBtn").addEventListener("click", clearList);
 $("undoBtn").addEventListener("click", undo);
@@ -1013,43 +1215,24 @@ $("themeToggle").addEventListener("click", toggleTheme);
 $("modePill").addEventListener("click", toggleShopping);
 $("shoppingBanner").addEventListener("click", toggleShopping);
 $("shareBtn").addEventListener("click", shareList);
-$("printBtn").addEventListener("click", printList);
-
-/* Chevron toggle: open suggestions with full catalog when input is empty */
-$("chevronBtn").addEventListener("mousedown", (e) => {
-  e.preventDefault();
-  if (suggBox.classList.contains("open")) {
-    suggBox.classList.remove("open");
-    return;
-  }
-  const q = inputEl.value.trim();
-  const matches = q ? rankMatches(q) : [...CATALOG].sort((a, b) => a.name.localeCompare(b.name));
-  activeSugg = 0;
-  renderSuggestions(matches, q);
-  inputEl.focus();
-});
-$("finderClose").addEventListener("click", closeFinder);
-$("finderModal").addEventListener("click", (e) => {
-  if (e.target.id === "finderModal") closeFinder();
-});
-
+$("printBtn").addEventListener("click", () => window.print());
 $("list").addEventListener("click", (e) => {
   const c = e.target.closest("[data-id]");
   const f = e.target.closest("[data-find]");
+  const a = e.target.closest("[data-assign]");
   const d = e.target.closest("[data-del]");
   if (c) toggleItem(c.dataset.id);
   else if (f) openFinder(f.dataset.find);
+  else if (a) openAllocate(a.dataset.assign);
   else if (d) deleteItem(d.dataset.del);
 });
 
-render();
-
 /* ============ PWA ============ */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
+
+boot();
 </script>
 </body>
 </html>
