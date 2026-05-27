@@ -382,22 +382,76 @@
   .stat-line { font-size: 13px; color: var(--muted); padding: 0 4px 8px; }
   .filter-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 12px;
-    padding: 6px 4px;
-    font-size: 13px;
-    color: var(--muted);
+    padding: 6px 0;
   }
-  .filter-row label { font-weight: 600; }
-  .filter-row select {
-    flex: 1;
-    padding: 8px 10px;
-    font-size: 14px;
+  .chip {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 14px;
     border: 1px solid var(--border);
-    border-radius: 8px;
     background: var(--card);
     color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .chip:active { transform: scale(0.97); }
+  .chip.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+  }
+  .chip-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-right: 4px;
+    font-weight: 600;
+  }
+  /* Toast */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 80px);
+    transform: translateX(-50%) translateY(20px);
+    background: var(--green-dark);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  /* Collapsible retailer header */
+  .retailer-header {
+    cursor: pointer;
+    user-select: none;
+  }
+  .retailer-header .chevron {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+  .retailer-header.collapsed .chevron { transform: rotate(-90deg); }
+  .retailer-header .item-count {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
   }
   /* Password-style token input with show/hide */
   .token-row { position: relative; }
@@ -542,9 +596,9 @@
     <button id="printBtn" class="secondary">🖨️ Print</button>
   </div>
 
-  <div class="filter-row">
-    <label for="retailerFilter">Retailer:</label>
-    <select id="retailerFilter"><option value="">All retailers</option></select>
+  <div class="filter-row" id="retailerFilter">
+    <span class="chip-label">Filter:</span>
+    <!-- chips populated dynamically -->
   </div>
 
   <div class="stat-line" id="statLine"></div>
@@ -552,10 +606,12 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v1.4</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v1.5</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
+
+<div class="toast" id="toast"></div>
 
 <!-- Finder modal -->
 <div class="modal-overlay" id="finderModal">
@@ -674,7 +730,9 @@ let state = {
   shopping: false,
   loading: true,
   lastAction: null,       // {kind: "add"|"tick", id}
-  retailerFilter: "",     // empty = show all
+  retailerFilter: new Set(),    // empty = show all; otherwise show items at any retailer in the set
+  expandedRetailers: new Set(), // retailers the user has expanded this session
+  freshLoad: true,        // true until first user interaction — used to default-collapse on load
 };
 
 /* ============ Theme ============ */
@@ -719,16 +777,31 @@ async function refreshAll() {
 }
 
 function populateRetailerFilter() {
-  const sel = $("retailerFilter");
-  const current = sel.value;
-  sel.innerHTML = `<option value="">All retailers</option>`;
+  const wrap = $("retailerFilter");
+  // Keep the leading label, rebuild chips
+  wrap.querySelectorAll(".chip").forEach(c => c.remove());
+  const allChip = document.createElement("button");
+  allChip.className = "chip" + (state.retailerFilter.size === 0 ? " active" : "");
+  allChip.textContent = "All";
+  allChip.dataset.rid = "__all";
+  wrap.appendChild(allChip);
   for (const r of state.retailers) {
-    const opt = document.createElement("option");
-    opt.value = r.id;
-    opt.textContent = `${r.name}${r.kind === "online" ? " (online)" : ""}`;
-    sel.appendChild(opt);
+    const chip = document.createElement("button");
+    chip.className = "chip" + (state.retailerFilter.has(r.id) ? " active" : "");
+    chip.textContent = r.name;
+    chip.dataset.rid = r.id;
+    wrap.appendChild(chip);
   }
-  sel.value = current || state.retailerFilter || "";
+}
+
+// Toast helper
+let toastTimer = null;
+function toast(msg, duration = 1500) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), duration);
 }
 
 function rebuildCatalogIndex() {
@@ -790,19 +863,24 @@ function render() {
   }
 
   // Apply retailer filter (UI only — items still exist on server)
-  const filtered = state.retailerFilter
-    ? state.items.filter(i => (i.retailer_id || "other") === state.retailerFilter)
+  const filterActive = state.retailerFilter.size > 0;
+  const filtered = filterActive
+    ? state.items.filter(i => state.retailerFilter.has(i.retailer_id || "other"))
     : state.items;
 
-  // Group by retailer; within each, group by aisle (or none for online).
+  // Group by retailer (no aisle subgrouping — alphabetical within retailer).
   const groupsByRetailer = new Map();
   for (const it of filtered) {
     const rid = it.retailer_id || "other";
     if (!groupsByRetailer.has(rid)) groupsByRetailer.set(rid, []);
     groupsByRetailer.get(rid).push(it);
   }
-  if (state.retailerFilter && filtered.length === 0) {
-    list.innerHTML = `<div class="empty"><span class="emoji">🔍</span>No items for this retailer.<br><span style="font-size:13px">Showing filter: ${escapeHtml(state.retailers.find(r => r.id === state.retailerFilter)?.name || state.retailerFilter)}</span></div>`;
+  // Alphabetical sort within each retailer
+  for (const arr of groupsByRetailer.values()) {
+    arr.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  if (filterActive && filtered.length === 0) {
+    list.innerHTML = `<div class="empty"><span class="emoji">🔍</span>No items match this filter.</div>`;
     return;
   }
 
@@ -834,44 +912,34 @@ function renderRetailerGroup(retailer, items) {
   const isOnline = retailer.kind === "online";
   const isOther = retailer.id === "other";
 
+  // Total quantity (incl. ×N) across all items at this retailer
+  const totalQty = items.reduce((sum, it) => sum + (it.quantity || 1), 0);
+
+  // Filter-active retailers always show expanded (otherwise filtering just
+  // shows collapsed headers and looks broken).
+  const forceOpen = state.retailerFilter.has(retailer.id);
+  const collapsed = forceOpen ? false
+    : (state.freshLoad ? true : !state.expandedRetailers.has(retailer.id));
+
   const header = document.createElement("div");
-  header.className = "retailer-header";
+  header.className = "retailer-header" + (collapsed ? " collapsed" : "");
+  header.dataset.retailerToggle = retailer.id;
   header.innerHTML = `
     <span class="retailer-dot" style="background:${retailer.color || "#6b7280"}"></span>
     <span class="retailer-name">${escapeHtml(retailer.name)}</span>
     ${isOnline ? `<span class="retailer-kind-chip online">Online</span>` : ""}
     ${isOther ? `<span class="retailer-kind-chip">Unassigned</span>` : ""}
+    <span class="item-count">(${totalQty})</span>
+    <span class="chevron">▾</span>
   `;
   wrap.appendChild(header);
 
-  if (isOnline || isOther) {
-    // Flat list (no aisles)
-    for (const it of items) wrap.appendChild(renderItem(it, retailer, false));
-    return wrap;
-  }
+  if (collapsed) return wrap;
 
-  // Group by aisle, sorted by aisle position
-  const byAisle = new Map();
-  for (const it of items) {
-    const key = it.aisle_id || "_no_aisle_";
-    if (!byAisle.has(key)) byAisle.set(key, []);
-    byAisle.get(key).push(it);
-  }
-  const aisleEntries = [...byAisle.entries()].sort((a, b) => {
-    const pa = a[1][0].aisle_position ?? 9999;
-    const pb = b[1][0].aisle_position ?? 9999;
-    return pa - pb;
-  });
-
-  for (const [aisleId, group] of aisleEntries) {
-    const aWrap = document.createElement("div");
-    aWrap.className = "aisle-group";
-    const headRow = group[0];
-    const subText = headRow.aisle_sub ? ` — ${headRow.aisle_sub}` : "";
-    aWrap.innerHTML = `<div class="aisle-header">${aisleId === "_no_aisle_" ? "No aisle set" : escapeHtml(headRow.aisle_name) + subText}</div>`;
-    for (const it of group) aWrap.appendChild(renderItem(it, retailer, true));
-    wrap.appendChild(aWrap);
-  }
+  // Expanded: render items flat, alphabetical (sorting happens before this).
+  // hasAisle = true for in-store retailers so the Find button shows in shopping mode.
+  const hasAisle = !isOnline && !isOther;
+  for (const it of items) wrap.appendChild(renderItem(it, retailer, hasAisle));
   return wrap;
 }
 
@@ -1080,9 +1148,19 @@ async function addItem(query) {
     const r = await api("/api/list/add", { method: "POST", body: { name: trimmed } });
     state.lastAction = { kind: "add", id: r.id, prevQty: beforeQty };
     await refreshList();
+    // Toast with canonical name from the server response (after refresh state.items has the row)
+    const row = state.items.find(i => i.id === r.id);
+    const displayName = row?.name || trimmed;
+    // Auto-expand the retailer the new item landed at, so it's visible
+    if (row?.retailer_id) {
+      state.freshLoad = false;
+      state.expandedRetailers.add(row.retailer_id);
+    }
+    if (r.merged) toast(`${displayName} now ×${r.quantity}`);
+    else toast(`Added ${displayName}`);
     return true;
   } catch (err) {
-    alert("Add failed: " + err.message);
+    toast("Add failed: " + err.message, 2500);
     return false;
   }
 }
@@ -1419,8 +1497,30 @@ $("tokenShowToggle").addEventListener("click", () => {
   else { inp.type = "password"; btn.textContent = "Show"; }
 });
 
-$("retailerFilter").addEventListener("change", (e) => {
-  state.retailerFilter = e.target.value;
+$("retailerFilter").addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  const rid = chip.dataset.rid;
+  if (rid === "__all") {
+    state.retailerFilter.clear();
+  } else {
+    if (state.retailerFilter.has(rid)) state.retailerFilter.delete(rid);
+    else state.retailerFilter.add(rid);
+  }
+  populateRetailerFilter();
+  render();
+});
+
+// Tap retailer header → toggle expand/collapse for THIS session
+$("list").addEventListener("click", (e) => {
+  const header = e.target.closest("[data-retailer-toggle]");
+  if (!header) return;
+  // Once user interacts, exit fresh-load mode so other groups stay collapsed
+  // but explicit expansions persist.
+  state.freshLoad = false;
+  const rid = header.dataset.retailerToggle;
+  if (state.expandedRetailers.has(rid)) state.expandedRetailers.delete(rid);
+  else state.expandedRetailers.add(rid);
   render();
 });
 
