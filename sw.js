@@ -1,4 +1,4 @@
-const CACHE = "shopwise-v10";
+const CACHE = "shopwise-v11";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icons/icon-192.svg", "./icons/icon-512.svg"];
 
 // Don't cache API responses in the install handler — they're cached per-request below.

@@ -68,7 +68,20 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   header .titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  header h1 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.1; }
+  header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header h1 .logo {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+  }
   header .tagline { font-size: 11px; opacity: 0.85; font-weight: 400; line-height: 1.1; }
   header .right { display: flex; align-items: center; gap: 8px; }
   header .mode-pill {
@@ -347,6 +360,41 @@
   }
   .empty .emoji { font-size: 48px; display: block; margin-bottom: 12px; }
   .stat-line { font-size: 13px; color: var(--muted); padding: 0 4px 8px; }
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 6px 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .filter-row label { font-weight: 600; }
+  .filter-row select {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+  }
+  /* Password-style token input with show/hide */
+  .token-row { position: relative; }
+  .token-row input { padding-right: 70px; }
+  .token-row .show-toggle {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: var(--green);
+    border: none;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
   footer.app-footer {
     text-align: center;
     color: var(--muted);
@@ -397,7 +445,22 @@
 <body>
 <header>
   <div class="titles">
-    <h1>🛒 Shop Wise</h1>
+    <h1>
+      <svg class="logo" viewBox="0 0 192 192" aria-hidden="true">
+        <rect width="192" height="192" rx="36" fill="#1f5634"/>
+        <g transform="rotate(-18 41 49)">
+          <rect x="23" y="40" width="27" height="17" rx="3" fill="#fbbf24"/>
+          <circle cx="28" cy="49" r="2.3" fill="#1f5634"/>
+        </g>
+        <path d="M 41 49 L 63 49 L 75 120 L 154 120" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 68 66 L 162 66 L 154 109 L 75 109 Z" stroke="white" stroke-width="9" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="86" cy="144" r="11" fill="white"/>
+        <circle cx="148" cy="144" r="11" fill="white"/>
+        <circle cx="86" cy="144" r="4.5" fill="#1f5634"/>
+        <circle cx="148" cy="144" r="4.5" fill="#1f5634"/>
+      </svg>
+      Shop Wise
+    </h1>
     <div class="tagline">Smarter aisles. Faster trips.</div>
   </div>
   <div class="right">
@@ -434,6 +497,11 @@
   <div class="secondary-actions">
     <button id="shareBtn" class="secondary">📤 Share</button>
     <button id="printBtn" class="secondary">🖨️ Print</button>
+  </div>
+
+  <div class="filter-row">
+    <label for="retailerFilter">Retailer:</label>
+    <select id="retailerFilter"><option value="">All retailers</option></select>
   </div>
 
   <div class="stat-line" id="statLine"></div>
@@ -485,7 +553,10 @@
     <label for="settingsApiUrl">API URL</label>
     <input id="settingsApiUrl" type="text" />
     <label for="settingsToken">Auth Token</label>
-    <input id="settingsToken" type="text" placeholder="Paste SHOPWISE_AUTH_TOKEN" />
+    <div class="token-row">
+      <input id="settingsToken" type="password" placeholder="Paste SHOPWISE_AUTH_TOKEN" autocomplete="off" />
+      <button type="button" class="show-toggle" id="tokenShowToggle">Show</button>
+    </div>
     <div class="row">
       <button class="secondary" id="settingsCancel">Cancel</button>
       <button id="settingsSave">Save</button>
@@ -538,6 +609,7 @@ let state = {
   shopping: false,
   loading: true,
   lastAction: null,       // {kind: "add"|"tick", id}
+  retailerFilter: "",     // empty = show all
 };
 
 /* ============ Theme ============ */
@@ -572,12 +644,26 @@ async function refreshAll() {
     state.catalog = catalogR.catalog || [];
     state.items = listR.items || [];
     rebuildCatalogIndex();
+    populateRetailerFilter();
   } catch (err) {
     showConfigBanner("Couldn't reach the server: " + err.message + ". Tap to open settings.");
   } finally {
     state.loading = false;
     render();
   }
+}
+
+function populateRetailerFilter() {
+  const sel = $("retailerFilter");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">All retailers</option>`;
+  for (const r of state.retailers) {
+    const opt = document.createElement("option");
+    opt.value = r.id;
+    opt.textContent = `${r.name}${r.kind === "online" ? " (online)" : ""}`;
+    sel.appendChild(opt);
+  }
+  sel.value = current || state.retailerFilter || "";
 }
 
 function rebuildCatalogIndex() {
@@ -638,12 +724,21 @@ function render() {
     return;
   }
 
+  // Apply retailer filter (UI only — items still exist on server)
+  const filtered = state.retailerFilter
+    ? state.items.filter(i => (i.retailer_id || "other") === state.retailerFilter)
+    : state.items;
+
   // Group by retailer; within each, group by aisle (or none for online).
   const groupsByRetailer = new Map();
-  for (const it of state.items) {
+  for (const it of filtered) {
     const rid = it.retailer_id || "other";
     if (!groupsByRetailer.has(rid)) groupsByRetailer.set(rid, []);
     groupsByRetailer.get(rid).push(it);
+  }
+  if (state.retailerFilter && filtered.length === 0) {
+    list.innerHTML = `<div class="empty"><span class="emoji">🔍</span>No items for this retailer.<br><span style="font-size:13px">Showing filter: ${escapeHtml(state.retailers.find(r => r.id === state.retailerFilter)?.name || state.retailerFilter)}</span></div>`;
+    return;
   }
 
   // Retailer order: online first, then by position, "other" last
@@ -1193,9 +1288,23 @@ $("configBanner").addEventListener("click", openSettings);
 function openSettings() {
   $("settingsApiUrl").value = config.apiUrl;
   $("settingsToken").value = config.token;
+  $("settingsToken").type = "password";
+  $("tokenShowToggle").textContent = "Show";
   $("settingsModal").classList.add("open");
 }
 $("settingsCancel").addEventListener("click", () => $("settingsModal").classList.remove("open"));
+$("tokenShowToggle").addEventListener("click", () => {
+  const inp = $("settingsToken");
+  const btn = $("tokenShowToggle");
+  if (inp.type === "password") { inp.type = "text"; btn.textContent = "Hide"; }
+  else { inp.type = "password"; btn.textContent = "Show"; }
+});
+
+$("retailerFilter").addEventListener("change", (e) => {
+  state.retailerFilter = e.target.value;
+  render();
+});
+
 $("settingsSave").addEventListener("click", async () => {
   config.apiUrl = $("settingsApiUrl").value.trim() || DEFAULT_API;
   config.token = $("settingsToken").value.trim();
