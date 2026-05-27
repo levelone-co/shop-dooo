@@ -1,9 +1,10 @@
-# 🛒 Shop Wise — MVP (Skeleton only · not for production)
+# 🛒 Shop Wise
 
 > Smarter aisles. Faster trips.
 
-**Live app:** https://levelone-co.github.io/shop-wise/
-*(Open on your phone and "Add to Home Screen" to install as a PWA.)*
+**Live app:** https://shop-wise.pages.dev
+**API:** https://shop-wise-api.apps-8ec.workers.dev
+*(Open the app URL on your phone and "Add to Home Screen" to install as a PWA. Set your auth token in ⚙️ Settings on first run.)*
 
 A mobile-first PWA shopping list that sorts items by aisle as you add them, then guides you through the store in **Shopping Mode** — with a Finder that shows you where each item lives on a sample store map.
 
