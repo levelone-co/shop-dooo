@@ -39,6 +39,13 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
     return jsonResp({ ok: true, service: "shop-wise-api", version: "1.0.0" }, env);
   }
 
+  // Pre-Do uses the endpoint URL as the action's `url` field — clicking
+  // "Open" in Pre-Do GETs the URL in a browser. Redirect those to the app
+  // so users land on the live list instead of seeing a 401 JSON page.
+  if (m === "GET" && p === "/api/from-pre-do") {
+    return Response.redirect("https://shop-wise.pages.dev/?from=predo", 302);
+  }
+
   // ─── Read routes (open) ───
   if (m === "GET" && p === "/api/retailers")        return getRetailers(env);
   if (m === "GET" && p === "/api/aisles")           return getAisles(env, url);
@@ -422,7 +429,22 @@ async function fromPreDo(req: Request, env: Env): Promise<Response> {
   const title    = (body.title as string) || "";
   const fulfilmentMode = ((body.fulfilmentMode as string) || "in_store") === "online" ? "online" : "in_store";
   const onlineOrderLink = (body.onlineOrderLink as string) || null;
-  const overrideRetailer = (body.retailerId as string) || null;
+  let overrideRetailer = (body.retailerId as string) || null;
+
+  // If Pre-Do didn't specify a retailer, try to infer one from the action title.
+  // E.g. title "Buy at Checkers" → checkers. First case-insensitive name or
+  // slug match wins.
+  if (!overrideRetailer && title) {
+    const titleLower = title.toLowerCase();
+    const retailers = await env.DB.prepare(`SELECT id, name FROM retailers WHERE id != 'other'`).all<{ id: string; name: string }>();
+    for (const r of (retailers.results || [])) {
+      const nameLower = r.name.toLowerCase();
+      if (titleLower.includes(nameLower) || titleLower.includes(r.id.toLowerCase())) {
+        overrideRetailer = r.id;
+        break;
+      }
+    }
+  }
 
   let rawItems: string[];
   if (Array.isArray(body.items) && body.items.length > 0) {
