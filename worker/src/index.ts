@@ -166,6 +166,7 @@ async function getCatalog(env: Env, url: URL): Promise<Response> {
   const retailer = url.searchParams.get("retailer");
   let q = `
     SELECT p.id AS product_id, p.name, p.brand, p.notes,
+           p.default_brand, p.default_size,
            l.retailer_id, l.aisle_id, l.indicative_price, l.is_primary
     FROM products p
     LEFT JOIN product_locations l ON l.product_id = p.id
@@ -182,7 +183,7 @@ async function getList(env: Env, url: URL): Promise<Response> {
   const fulfilmentMode = url.searchParams.get("fulfilment_mode");
   let q = `
     SELECT li.id, li.name, li.product_id, li.retailer_id, li.aisle_id,
-           li.quantity, li.brand, li.size, li.notes,
+           li.quantity, li.brand, li.size, li.notes, li.tags,
            li.checked, li.fulfilment_mode, li.online_order_link, li.external_status,
            li.source, li.source_action_id, li.source_inbox_id,
            li.created_at, li.updated_at,
@@ -376,7 +377,7 @@ async function listUpdate(req: Request, env: Env): Promise<Response> {
   if (!id) return jsonResp({ ok: false, error: "id required" }, env, 400);
 
   // Whitelist fields
-  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "brand", "size", "notes",
+  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "brand", "size", "notes", "tags",
                    "fulfilment_mode", "online_order_link", "external_status"];
   const sets: string[] = [];
   const binds: unknown[] = [];

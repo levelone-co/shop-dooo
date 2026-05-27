@@ -372,6 +372,21 @@
   }
   .badge.predo { background: #ede9fe; color: #5b21b6; }
   [data-theme="dark"] .badge.predo { background: #4c1d95; color: #ede9fe; }
+  .tag-chip {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #e0f2fe;
+    color: #075985;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-top: 2px;
+  }
+  [data-theme="dark"] .tag-chip { background: #075985; color: #e0f2fe; }
+  .tag-chip.warn { background: #fef3c7; color: #92400e; }
+  [data-theme="dark"] .tag-chip.warn { background: #78350f; color: #fef3c7; }
+  .tags-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; min-height: 4px; }
 
   .empty {
     text-align: center;
@@ -537,6 +552,59 @@
     padding: 24px; text-align: center; color: var(--muted);
     background: var(--map-bg); border-radius: 10px;
   }
+  /* Admin modal */
+  .admin-modal { max-width: 560px; }
+  .admin-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .admin-tabs {
+    display: flex; gap: 4px; margin-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .admin-tab {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+  .admin-tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+  .admin-body { min-height: 200px; }
+  .admin-list-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .admin-list-row:active { background: var(--green-light); }
+  .admin-list-row .dot {
+    width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  }
+  .admin-list-row .row-main {
+    flex: 1; min-width: 0;
+  }
+  .admin-list-row .row-name { font-size: 15px; font-weight: 600; }
+  .admin-list-row .row-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .admin-list-row .row-chevron { color: var(--muted); font-size: 16px; }
+  .admin-add-btn {
+    width: 100%; padding: 12px; margin-bottom: 12px;
+    background: var(--green-light);
+    color: var(--green-dark);
+    border: 1px dashed var(--green);
+    font-weight: 600;
+  }
+  .admin-add-btn:active { background: var(--green); color: white; }
 </style>
 </head>
 <body>
@@ -562,6 +630,7 @@
   </div>
   <div class="right">
     <span class="mode-pill" id="modePill">List Mode</span>
+    <button class="icon-btn" id="adminBtn" aria-label="Admin">🛠️</button>
     <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
     <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
   </div>
@@ -606,7 +675,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v1.5</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v1.6</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -635,7 +704,10 @@
 <!-- Edit item modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal">
-    <h2 id="editTitle">Edit item</h2>
+    <h2>Edit item</h2>
+
+    <label for="editName">Name</label>
+    <input id="editName" type="text" placeholder="Item name" />
 
     <label>Quantity</label>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -653,6 +725,10 @@
     <label for="editNotes">Notes</label>
     <input id="editNotes" type="text" placeholder="e.g. organic, the blue one" />
 
+    <label for="editTags">Tags (comma separated)</label>
+    <input id="editTags" type="text" placeholder="e.g. sixty60, no-stock 2026-05-17" />
+    <div id="editTagsPreview" class="tags-row"></div>
+
     <label for="editRetailer">Retailer</label>
     <select id="editRetailer"></select>
 
@@ -664,6 +740,35 @@
       <button class="secondary" id="editCancel">Cancel</button>
     </div>
     <div style="margin-top:8px"><button id="editSave" style="width:100%;">Save</button></div>
+  </div>
+</div>
+
+<!-- Admin modal -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal admin-modal">
+    <div class="admin-header">
+      <h2 style="margin:0">🛠️ Admin</h2>
+      <button class="secondary admin-close" id="adminClose" style="padding:6px 10px;">✕</button>
+    </div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="retailers">Retailers</button>
+      <button class="admin-tab" data-tab="products">Products</button>
+      <button class="admin-tab" data-tab="catalog">Catalog</button>
+    </div>
+    <div class="admin-body" id="adminBody"></div>
+  </div>
+</div>
+
+<!-- Admin edit modal — reused for retailers/products/locations -->
+<div class="modal-overlay" id="adminEditModal">
+  <div class="modal">
+    <h2 id="adminEditTitle">Edit</h2>
+    <div id="adminEditForm"></div>
+    <div class="row">
+      <button class="danger" id="adminEditDelete">Delete</button>
+      <button class="secondary" id="adminEditCancel">Cancel</button>
+    </div>
+    <div style="margin-top:8px"><button id="adminEditSave" style="width:100%;">Save</button></div>
   </div>
 </div>
 
@@ -970,17 +1075,35 @@ function renderItem(it, retailer, hasAisle) {
     ? `<div class="meta-line">${metaParts.join('<span class="sep">·</span>')}</div>`
     : "";
 
+  // Tag chips (comma-separated string)
+  const tagsHtml = renderTagChips(it.tags);
+
   row.innerHTML = `
     <div class="check" data-id="${it.id}">${it.checked ? "✓" : ""}</div>
     <div style="flex:1;min-width:0;">
       <div class="name" data-edit="${it.id}">${escapeHtml(it.name)}${qtyBadge} ${badgeHtml}</div>
       ${metaLine}
+      ${tagsHtml}
     </div>
     ${linkBtn}
     ${findBtn}
     <button class="del-btn" data-del="${it.id}" aria-label="Delete">✕</button>
   `;
   return row;
+}
+
+function parseTags(s) {
+  if (!s) return [];
+  return s.split(",").map(t => t.trim()).filter(Boolean);
+}
+function renderTagChips(tagsStr) {
+  const tags = parseTags(tagsStr);
+  if (!tags.length) return "";
+  const chips = tags.map(t => {
+    const isWarn = /^no[- ]stock/i.test(t);
+    return `<span class="tag-chip${isWarn ? " warn" : ""}">${escapeHtml(t)}</span>`;
+  }).join("");
+  return `<div class="tags-row">${chips}</div>`;
 }
 
 function escapeHtml(s) {
@@ -1256,11 +1379,13 @@ async function openEditItem(itemId) {
   const it = state.items.find(i => i.id === itemId);
   if (!it) return;
   editingItemId = itemId;
-  $("editTitle").textContent = it.name;
+  $("editName").value = it.name || "";
   $("editQty").value = it.quantity || 1;
   $("editBrand").value = it.brand || "";
   $("editSize").value = it.size || "";
   $("editNotes").value = it.notes || "";
+  $("editTags").value = it.tags || "";
+  $("editTagsPreview").innerHTML = renderTagChips(it.tags).replace(/^<div class="tags-row">|<\/div>$/g, "");
 
   const sel = $("editRetailer");
   sel.innerHTML = "";
@@ -1314,11 +1439,17 @@ $("editDelete").addEventListener("click", async () => {
 $("editSave").addEventListener("click", async () => {
   if (!editingItemId) return;
   const id = editingItemId;
+  const newName = $("editName").value.trim();
+  if (!newName) { alert("Name cannot be blank."); return; }
+  // Normalise tags: trim, drop empties, comma-join
+  const cleanTags = parseTags($("editTags").value).join(", ") || null;
   const fields = {
+    name: newName,
     quantity: Math.max(1, parseInt($("editQty").value, 10) || 1),
     brand: $("editBrand").value.trim() || null,
     size: $("editSize").value.trim() || null,
     notes: $("editNotes").value.trim() || null,
+    tags: cleanTags,
     retailer_id: $("editRetailer").value,
     aisle_id: $("editAisle").value || null,
   };
@@ -1327,6 +1458,11 @@ $("editSave").addEventListener("click", async () => {
     $("editModal").classList.remove("open");
     await refreshList();
   } catch (err) { alert("Save failed: " + err.message); }
+});
+
+// Live preview of tag chips as user types
+$("editTags").addEventListener("input", () => {
+  $("editTagsPreview").innerHTML = renderTagChips($("editTags").value).replace(/^<div class="tags-row">|<\/div>$/g, "");
 });
 
 /* ============ Finder map ============ */
@@ -1472,6 +1608,262 @@ async function shareList() {
   try { await navigator.clipboard.writeText(text); alert("List copied to clipboard."); }
   catch (e) { prompt("Copy your list:", text); }
 }
+
+/* ============ Admin ============ */
+let adminTab = "retailers";
+let adminEditing = null; // { resource: "retailers"|"products"|"locations", row: {...} | null (new) }
+
+$("adminBtn").addEventListener("click", openAdmin);
+$("adminClose").addEventListener("click", () => $("adminModal").classList.remove("open"));
+document.querySelectorAll(".admin-tab").forEach(t => {
+  t.addEventListener("click", () => {
+    adminTab = t.dataset.tab;
+    document.querySelectorAll(".admin-tab").forEach(tt => tt.classList.toggle("active", tt === t));
+    renderAdminTab();
+  });
+});
+
+async function openAdmin() {
+  if (!config.token) { openSettings(); return; }
+  $("adminModal").classList.add("open");
+  await refreshAll(); // ensure latest retailers/catalog
+  renderAdminTab();
+}
+
+function renderAdminTab() {
+  const body = $("adminBody");
+  body.innerHTML = "";
+  if (adminTab === "retailers") return renderAdminRetailers(body);
+  if (adminTab === "products")  return renderAdminProducts(body);
+  if (adminTab === "catalog")   return renderAdminCatalog(body);
+}
+
+function renderAdminRetailers(body) {
+  const add = document.createElement("button");
+  add.className = "admin-add-btn";
+  add.textContent = "+ Add retailer";
+  add.onclick = () => openAdminEdit("retailers", null);
+  body.appendChild(add);
+  for (const r of state.retailers) {
+    const row = document.createElement("div");
+    row.className = "admin-list-row";
+    row.innerHTML = `
+      <span class="dot" style="background:${r.color || "#6b7280"}"></span>
+      <div class="row-main">
+        <div class="row-name">${escapeHtml(r.name)}</div>
+        <div class="row-sub">${r.kind}${r.is_default ? " · default" : ""}${r.online_url_template ? " · " + escapeHtml(r.online_url_template) : ""}</div>
+      </div>
+      <span class="row-chevron">›</span>
+    `;
+    row.onclick = () => openAdminEdit("retailers", r);
+    body.appendChild(row);
+  }
+}
+
+function renderAdminProducts(body) {
+  // Group products by name (catalog may have multiple rows per product via locations)
+  const products = new Map();
+  for (const c of state.catalog) {
+    if (!products.has(c.product_id)) {
+      products.set(c.product_id, {
+        id: c.product_id,
+        name: c.name,
+        brand: c.brand || null,
+        notes: c.notes || null,
+        default_brand: c.default_brand || null,
+        default_size: c.default_size || null,
+      });
+    }
+  }
+  const add = document.createElement("button");
+  add.className = "admin-add-btn";
+  add.textContent = "+ Add product";
+  add.onclick = () => openAdminEdit("products", null);
+  body.appendChild(add);
+  const sorted = [...products.values()].sort((a, b) => a.name.localeCompare(b.name));
+  for (const p of sorted) {
+    const row = document.createElement("div");
+    row.className = "admin-list-row";
+    // Count retailers stocking this product
+    const retailerIds = new Set(state.catalog.filter(c => c.product_id === p.id && c.retailer_id).map(c => c.retailer_id));
+    row.innerHTML = `
+      <div class="row-main">
+        <div class="row-name">${escapeHtml(p.name)}</div>
+        <div class="row-sub">${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}${p.brand ? " · " + escapeHtml(p.brand) : ""}</div>
+      </div>
+      <span class="row-chevron">›</span>
+    `;
+    row.onclick = () => openAdminEdit("products", p);
+    body.appendChild(row);
+  }
+}
+
+function renderAdminCatalog(body) {
+  // "Catalog" tab = the matrix. Pick a product → see locations.
+  const intro = document.createElement("div");
+  intro.style.cssText = "padding:8px 4px;font-size:13px;color:var(--muted);";
+  intro.textContent = "Pick a product to edit which retailers stock it and at which aisle:";
+  body.appendChild(intro);
+
+  const sel = document.createElement("select");
+  sel.style.cssText = "width:100%;margin-bottom:12px;";
+  sel.innerHTML = `<option value="">— Select a product —</option>`;
+  const products = new Map();
+  for (const c of state.catalog) {
+    if (!products.has(c.product_id)) products.set(c.product_id, c.name);
+  }
+  [...products.entries()].sort((a,b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
+    const opt = document.createElement("option");
+    opt.value = id; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  body.appendChild(sel);
+
+  const locArea = document.createElement("div");
+  body.appendChild(locArea);
+
+  sel.onchange = () => renderProductLocations(locArea, sel.value);
+}
+
+async function renderProductLocations(area, productId) {
+  area.innerHTML = "";
+  if (!productId) return;
+  const locs = state.catalog.filter(c => c.product_id === productId && c.retailer_id);
+
+  // For each retailer, show current location (or "not stocked")
+  for (const r of state.retailers) {
+    const loc = locs.find(l => l.retailer_id === r.id);
+    const row = document.createElement("div");
+    row.className = "admin-list-row";
+    row.innerHTML = `
+      <span class="dot" style="background:${r.color || "#6b7280"}"></span>
+      <div class="row-main">
+        <div class="row-name">${escapeHtml(r.name)}</div>
+        <div class="row-sub">${loc ? `Aisle: ${loc.aisle_id || "(not set)"}${loc.indicative_price ? " · R" + loc.indicative_price : ""}` : "Not stocked"}</div>
+      </div>
+      <span class="row-chevron">${loc ? "›" : "+"}</span>
+    `;
+    row.onclick = () => openAdminEdit("locations", loc ? { ...loc, product_id: productId } : { product_id: productId, retailer_id: r.id });
+    area.appendChild(row);
+  }
+}
+
+/* ── Admin edit dialog ── */
+async function openAdminEdit(resource, row) {
+  adminEditing = { resource, row };
+  $("adminEditTitle").textContent = row ? `Edit ${resource.replace(/s$/, "")}` : `New ${resource.replace(/s$/, "")}`;
+  const form = $("adminEditForm");
+  form.innerHTML = "";
+  $("adminEditDelete").style.display = row ? "" : "none";
+
+  if (resource === "retailers") {
+    form.innerHTML = `
+      <label>ID (slug, lowercase, no spaces)</label>
+      <input id="ae_id" type="text" value="${escapeAttr(row?.id || "")}" ${row ? "readonly" : ""} placeholder="e.g. sixty60" />
+      <label>Name</label>
+      <input id="ae_name" type="text" value="${escapeAttr(row?.name || "")}" />
+      <label>Kind</label>
+      <select id="ae_kind">
+        <option value="physical"${row?.kind === "physical" ? " selected" : ""}>Physical</option>
+        <option value="online"${row?.kind === "online" ? " selected" : ""}>Online</option>
+        <option value="hybrid"${row?.kind === "hybrid" ? " selected" : ""}>Hybrid</option>
+      </select>
+      <label>Color (hex)</label>
+      <input id="ae_color" type="text" value="${escapeAttr(row?.color || "#6b7280")}" />
+      <label>Online URL template</label>
+      <input id="ae_online_url_template" type="text" value="${escapeAttr(row?.online_url_template || "")}" placeholder="https://..." />
+      <label><input id="ae_is_default" type="checkbox" ${row?.is_default ? "checked" : ""} /> Default retailer (only one)</label>
+    `;
+  } else if (resource === "products") {
+    form.innerHTML = `
+      <label>Name</label>
+      <input id="ae_name" type="text" value="${escapeAttr(row?.name || "")}" />
+      <label>Default brand</label>
+      <input id="ae_default_brand" type="text" value="${escapeAttr(row?.default_brand || "")}" placeholder="(blank = no default)" />
+      <label>Default size</label>
+      <input id="ae_default_size" type="text" value="${escapeAttr(row?.default_size || "")}" placeholder="e.g. 1kg, 4 pack" />
+      <label>Notes</label>
+      <input id="ae_notes" type="text" value="${escapeAttr(row?.notes || "")}" />
+    `;
+  } else if (resource === "locations") {
+    // Aisle picker depends on retailer
+    const aisles = await ensureAislesFor(row.retailer_id);
+    const aisleOpts = aisles.map(a => `<option value="${escapeAttr(a.id)}"${a.id === row?.aisle_id ? " selected" : ""}>${escapeHtml(a.name)}${a.sub ? " — " + escapeHtml(a.sub) : ""}</option>`).join("");
+    const productName = (state.catalog.find(c => c.product_id === row.product_id)?.name) || "(unknown)";
+    const retailerName = (state.retailers.find(r => r.id === row.retailer_id)?.name) || "(unknown)";
+    form.innerHTML = `
+      <p style="color:var(--muted);font-size:13px;margin:0 0 8px"><strong>${escapeHtml(productName)}</strong> at <strong>${escapeHtml(retailerName)}</strong></p>
+      <label>Aisle</label>
+      <select id="ae_aisle_id">
+        <option value="">(none)</option>
+        ${aisleOpts}
+      </select>
+      <label>Indicative price (optional)</label>
+      <input id="ae_indicative_price" type="number" step="0.01" value="${row?.indicative_price || ""}" placeholder="R" />
+    `;
+  }
+
+  $("adminEditModal").classList.add("open");
+}
+
+$("adminEditCancel").addEventListener("click", () => $("adminEditModal").classList.remove("open"));
+
+$("adminEditSave").addEventListener("click", async () => {
+  if (!adminEditing) return;
+  const { resource, row } = adminEditing;
+  const isNew = !row || !row.id;
+  let body = {};
+  if (resource === "retailers") {
+    body = {
+      id: $("ae_id").value.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+      name: $("ae_name").value.trim(),
+      kind: $("ae_kind").value,
+      color: $("ae_color").value.trim() || null,
+      online_url_template: $("ae_online_url_template").value.trim() || null,
+      is_default: $("ae_is_default").checked ? 1 : 0,
+    };
+    if (!body.id || !body.name) { alert("ID and Name are required."); return; }
+  } else if (resource === "products") {
+    body = {
+      name: $("ae_name").value.trim(),
+      default_brand: $("ae_default_brand").value.trim() || null,
+      default_size: $("ae_default_size").value.trim() || null,
+      notes: $("ae_notes").value.trim() || null,
+    };
+    if (!body.name) { alert("Name is required."); return; }
+    if (!isNew) body.id = row.id;
+  } else if (resource === "locations") {
+    body = {
+      product_id: row.product_id,
+      retailer_id: row.retailer_id,
+      aisle_id: $("ae_aisle_id").value || null,
+      indicative_price: parseFloat($("ae_indicative_price").value) || null,
+    };
+    if (!isNew) body.id = row.id;
+  }
+
+  try {
+    const method = isNew ? "POST" : "PATCH";
+    await api(`/api/admin/${resource}`, { method, body });
+    $("adminEditModal").classList.remove("open");
+    await refreshAll();
+    renderAdminTab();
+    toast(isNew ? "Created" : "Saved");
+  } catch (err) { alert("Save failed: " + err.message); }
+});
+
+$("adminEditDelete").addEventListener("click", async () => {
+  if (!adminEditing || !adminEditing.row?.id) return;
+  const { resource, row } = adminEditing;
+  if (!confirm(`Delete this ${resource.replace(/s$/, "")}? This cannot be undone.`)) return;
+  try {
+    await api(`/api/admin/${resource}`, { method: "DELETE", body: { id: row.id } });
+    $("adminEditModal").classList.remove("open");
+    await refreshAll();
+    renderAdminTab();
+    toast("Deleted");
+  } catch (err) { alert("Delete failed: " + err.message); }
+});
 
 /* ============ Settings ============ */
 function showConfigBanner(msg) {

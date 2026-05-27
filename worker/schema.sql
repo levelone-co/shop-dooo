@@ -93,6 +93,7 @@ CREATE TABLE list_items (
   brand             TEXT,                       -- "Phillips"
   size              TEXT,                       -- "1kg" / "4 pack" / "1 bag"
   notes             TEXT,                       -- free text
+  tags              TEXT,                       -- comma-separated, e.g. "sixty60, no-stock 2026-05-17"
   checked           INTEGER NOT NULL DEFAULT 0,
   fulfilment_mode   TEXT NOT NULL DEFAULT 'in_store'
                      CHECK (fulfilment_mode IN ('in_store','online')),
