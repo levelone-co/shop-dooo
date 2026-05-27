@@ -175,6 +175,7 @@ async function getList(env: Env, url: URL): Promise<Response> {
   const fulfilmentMode = url.searchParams.get("fulfilment_mode");
   let q = `
     SELECT li.id, li.name, li.product_id, li.retailer_id, li.aisle_id,
+           li.quantity, li.brand, li.size, li.notes,
            li.checked, li.fulfilment_mode, li.online_order_link, li.external_status,
            li.source, li.source_action_id, li.source_inbox_id,
            li.created_at, li.updated_at,
@@ -228,43 +229,115 @@ async function lookupProduct(env: Env, url: URL): Promise<Response> {
 // ─────────────────────────────────────────────────────────────────────────
 // List ops
 // ─────────────────────────────────────────────────────────────────────────
-async function listAdd(req: Request, env: Env): Promise<Response> {
-  const body = await readJson(req);
-  const name = (body.name as string || "").trim();
-  if (!name) return jsonResp({ ok: false, error: "name required" }, env, 400);
+/**
+ * Add an item to the list, merging by (name + retailer + brand + size) when
+ * an unchecked match exists — in that case it increments quantity by addQty.
+ * Used by both manual /api/list/add and Pre-Do ingestion.
+ */
+async function addItemToList(env: Env, opts: {
+  name: string;
+  quantity?: number;
+  retailerId?: string | null;
+  aisleId?: string | null;
+  brand?: string | null;
+  size?: string | null;
+  fulfilmentMode?: "in_store" | "online";
+  onlineOrderLink?: string | null;
+  source?: "manual" | "pre-do";
+  sourceActionId?: string | null;
+  sourceInboxId?: string | null;
+  retailerOverride?: boolean;  // if true, don't fall back to product's default retailer
+}): Promise<{ id: string; merged: boolean; quantity: number }> {
+  const name = opts.name.trim();
+  const addQty = Math.max(1, opts.quantity || 1);
+  const now = nowIso();
 
-  // Try to resolve product + default retailer location.
+  // Resolve canonical product info if it exists in catalog
   const lookup = await env.DB.prepare(
-    `SELECT p.id AS product_id, l.retailer_id, l.aisle_id
+    `SELECT p.id AS product_id, p.name AS canonical_name, p.default_brand, p.default_size,
+            l.retailer_id, l.aisle_id
      FROM products p
      LEFT JOIN product_locations l ON l.product_id = p.id
      WHERE LOWER(p.name) = LOWER(?)
      ORDER BY l.is_primary DESC, l.retailer_id
      LIMIT 1`
-  ).bind(name).first<{ product_id: string; retailer_id: string | null; aisle_id: string | null }>();
+  ).bind(name).first<{
+    product_id: string; canonical_name: string;
+    default_brand: string | null; default_size: string | null;
+    retailer_id: string | null; aisle_id: string | null;
+  }>();
+
+  const canonical  = lookup?.canonical_name ?? name;
+  const productId  = lookup?.product_id ?? null;
+  const retailerId = opts.retailerId !== undefined && opts.retailerId !== null
+    ? opts.retailerId
+    : (lookup?.retailer_id ?? null);
+  let aisleId: string | null = opts.aisleId !== undefined && opts.aisleId !== null
+    ? opts.aisleId
+    : ((retailerId === lookup?.retailer_id) ? (lookup?.aisle_id ?? null) : null);
+  // If retailer overridden but no aisle, try to find aisle for that retailer
+  if (productId && retailerId && !aisleId && (opts.fulfilmentMode || "in_store") === "in_store") {
+    const loc = await env.DB.prepare(
+      `SELECT aisle_id FROM product_locations WHERE product_id = ? AND retailer_id = ?`
+    ).bind(productId, retailerId).first<{ aisle_id: string | null }>();
+    if (loc?.aisle_id) aisleId = loc.aisle_id;
+  }
+  if (opts.fulfilmentMode === "online") aisleId = null;
+
+  const brand     = opts.brand !== undefined ? opts.brand : (lookup?.default_brand ?? null);
+  const size      = opts.size  !== undefined ? opts.size  : (lookup?.default_size  ?? null);
+  const fulfil    = opts.fulfilmentMode || "in_store";
+  const orderLink = opts.onlineOrderLink || null;
+  const source    = opts.source || "manual";
+
+  // Increment-on-duplicate
+  const existing = await env.DB.prepare(
+    `SELECT id, quantity FROM list_items
+     WHERE LOWER(name) = LOWER(?)
+       AND COALESCE(retailer_id,'') = COALESCE(?, '')
+       AND COALESCE(brand,'')       = COALESCE(?, '')
+       AND COALESCE(size,'')        = COALESCE(?, '')
+       AND checked = 0
+     LIMIT 1`
+  ).bind(canonical, retailerId, brand, size).first<{ id: string; quantity: number }>();
+
+  if (existing) {
+    const newQty = (existing.quantity || 1) + addQty;
+    await env.DB.prepare(
+      `UPDATE list_items SET quantity = ?, updated_at = ? WHERE id = ?`
+    ).bind(newQty, now, existing.id).run();
+    return { id: existing.id, merged: true, quantity: newQty };
+  }
 
   const id = uuid();
-  const now = nowIso();
-  const retailerId = (body.retailerId as string) ?? lookup?.retailer_id ?? null;
-  const aisleId    = (body.aisleId    as string) ?? lookup?.aisle_id    ?? null;
-  const productId  = lookup?.product_id ?? null;
-  const fulfil     = (body.fulfilmentMode as string) ?? "in_store";
-  const orderLink  = (body.onlineOrderLink as string) ?? null;
-
   await env.DB.prepare(
     `INSERT INTO list_items
-       (id, name, product_id, retailer_id, aisle_id, fulfilment_mode, online_order_link,
-        source, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?)`
-  ).bind(id, lookup ? (await getProductName(env, productId!)) : name,
-         productId, retailerId, aisleId, fulfil, orderLink, now, now).run();
+       (id, name, product_id, retailer_id, aisle_id, quantity, brand, size,
+        fulfilment_mode, online_order_link, source, source_action_id, source_inbox_id,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, canonical, productId, retailerId, aisleId, addQty, brand, size,
+         fulfil, orderLink, source, opts.sourceActionId || null, opts.sourceInboxId || null,
+         now, now).run();
 
-  return jsonResp({ ok: true, id }, env, 201);
+  return { id, merged: false, quantity: addQty };
 }
 
-async function getProductName(env: Env, productId: string): Promise<string> {
-  const row = await env.DB.prepare(`SELECT name FROM products WHERE id = ?`).bind(productId).first<{ name: string }>();
-  return row?.name ?? "";
+async function listAdd(req: Request, env: Env): Promise<Response> {
+  const body = await readJson(req);
+  const name = (body.name as string || "").trim();
+  if (!name) return jsonResp({ ok: false, error: "name required" }, env, 400);
+  const result = await addItemToList(env, {
+    name,
+    quantity: body.quantity as number | undefined,
+    retailerId: body.retailerId as string | undefined,
+    aisleId: body.aisleId as string | undefined,
+    brand: body.brand as string | undefined,
+    size: body.size as string | undefined,
+    fulfilmentMode: (body.fulfilmentMode as "in_store" | "online" | undefined),
+    onlineOrderLink: body.onlineOrderLink as string | undefined,
+  });
+  return jsonResp({ ok: true, ...result }, env, result.merged ? 200 : 201);
 }
 
 async function listCheck(req: Request, env: Env): Promise<Response> {
@@ -296,7 +369,8 @@ async function listUpdate(req: Request, env: Env): Promise<Response> {
   if (!id) return jsonResp({ ok: false, error: "id required" }, env, 400);
 
   // Whitelist fields
-  const allowed = ["name", "checked", "retailer_id", "aisle_id", "fulfilment_mode", "online_order_link", "external_status"];
+  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "brand", "size", "notes",
+                   "fulfilment_mode", "online_order_link", "external_status"];
   const sets: string[] = [];
   const binds: unknown[] = [];
   for (const k of allowed) {
@@ -350,69 +424,47 @@ async function fromPreDo(req: Request, env: Env): Promise<Response> {
   const onlineOrderLink = (body.onlineOrderLink as string) || null;
   const overrideRetailer = (body.retailerId as string) || null;
 
-  let items: string[];
+  let rawItems: string[];
   if (Array.isArray(body.items) && body.items.length > 0) {
-    items = (body.items as unknown[]).map(x => String(x)).filter(Boolean);
+    rawItems = (body.items as unknown[]).map(x => String(x)).filter(Boolean);
   } else if (title) {
-    items = [title];
+    rawItems = [title];
   } else {
     return jsonResp({ ok: false, error: "no items in payload" }, env, 400);
   }
 
+  // Pre-merge duplicates within the payload itself
+  const tally = new Map<string, number>();
+  for (const r of rawItems) {
+    const k = r.trim();
+    if (!k) continue;
+    tally.set(k, (tally.get(k) || 0) + 1);
+  }
+
   const insertedIds: string[] = [];
-  const now = nowIso();
-
-  for (const rawName of items) {
-    const trimmed = rawName.trim();
-    if (!trimmed) continue;
-
-    let productId: string | null = null;
-    let canonicalName = trimmed;
-    let retailerId: string | null = overrideRetailer;
-    let aisleId: string | null = null;
-
-    const lookup = await env.DB.prepare(
-      `SELECT p.id AS product_id, p.name,
-              l.retailer_id, l.aisle_id, l.is_primary
-       FROM products p
-       LEFT JOIN product_locations l ON l.product_id = p.id
-       WHERE LOWER(p.name) = LOWER(?)
-       ORDER BY l.is_primary DESC, l.retailer_id
-       LIMIT 1`
-    ).bind(trimmed).first<{ product_id: string; name: string; retailer_id: string | null; aisle_id: string | null }>();
-
-    if (lookup) {
-      productId = lookup.product_id;
-      canonicalName = lookup.name;
-      // If caller didn't override the retailer, use the matched primary
-      if (!retailerId) retailerId = lookup.retailer_id;
-      // Only use aisle if same retailer (otherwise look up aisle for that retailer)
-      if (retailerId === lookup.retailer_id) aisleId = lookup.aisle_id;
+  for (const [name, qty] of tally) {
+    const result = await addItemToList(env, {
+      name,
+      quantity: qty,
+      retailerId: overrideRetailer || undefined,  // falls back to "other" below if no product match
+      fulfilmentMode,
+      onlineOrderLink,
+      source: "pre-do",
+      sourceActionId: actionId,
+      sourceInboxId: inboxId,
+    });
+    // Ensure no-match items land under "other" rather than NULL retailer
+    if (!result.merged) {
+      const it = await env.DB.prepare(
+        `SELECT retailer_id FROM list_items WHERE id = ?`
+      ).bind(result.id).first<{ retailer_id: string | null }>();
+      if (!it?.retailer_id) {
+        await env.DB.prepare(
+          `UPDATE list_items SET retailer_id = 'other', updated_at = ? WHERE id = ?`
+        ).bind(nowIso(), result.id).run();
+      }
     }
-
-    // If retailerId is set but aisle not yet (e.g. overridden retailer or online mode), try to find one
-    if (retailerId && !aisleId && fulfilmentMode === "in_store" && productId) {
-      const loc = await env.DB.prepare(
-        `SELECT aisle_id FROM product_locations WHERE product_id = ? AND retailer_id = ?`
-      ).bind(productId, retailerId).first<{ aisle_id: string | null }>();
-      if (loc?.aisle_id) aisleId = loc.aisle_id;
-    }
-
-    // Online mode: no aisle
-    if (fulfilmentMode === "online") aisleId = null;
-
-    // If still no retailer, fall back to "other"
-    if (!retailerId) retailerId = "other";
-
-    const id = uuid();
-    await env.DB.prepare(
-      `INSERT INTO list_items
-         (id, name, product_id, retailer_id, aisle_id, fulfilment_mode, online_order_link,
-          source, source_action_id, source_inbox_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pre-do', ?, ?, ?, ?)`
-    ).bind(id, canonicalName, productId, retailerId, aisleId, fulfilmentMode,
-           onlineOrderLink, actionId, inboxId, now, now).run();
-    insertedIds.push(id);
+    insertedIds.push(result.id);
   }
 
   return jsonResp({ ok: true, inserted: insertedIds.length, ids: insertedIds }, env, 201);

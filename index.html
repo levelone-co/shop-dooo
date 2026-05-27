@@ -319,6 +319,26 @@
     user-select: none;
   }
   .item.checked .check { background: var(--green); border-color: var(--green); color: white; }
+  .item .name { cursor: pointer; }
+  .item .name:active { color: var(--green); }
+  .item .qty-badge {
+    display: inline-block;
+    background: var(--green);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .item .meta-line {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+  .item .meta-line .sep { margin: 0 4px; opacity: 0.5; }
   .item .find-btn {
     width: auto; padding: 6px 10px; font-size: 12px;
     background: var(--green-light); color: var(--green-dark); border: none;
@@ -531,18 +551,38 @@
   </div>
 </div>
 
-<!-- Allocate retailer modal -->
-<div class="modal-overlay" id="allocateModal">
+<!-- Edit item modal -->
+<div class="modal-overlay" id="editModal">
   <div class="modal">
-    <h2 id="allocateTitle">Allocate</h2>
-    <label for="allocRetailer">Retailer</label>
-    <select id="allocRetailer"></select>
-    <label for="allocAisle">Aisle (in-store retailers only)</label>
-    <select id="allocAisle"></select>
-    <div class="row">
-      <button class="secondary" id="allocCancel">Cancel</button>
-      <button id="allocSave">Save</button>
+    <h2 id="editTitle">Edit item</h2>
+
+    <label>Quantity</label>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button type="button" class="secondary" id="qtyMinus" style="width:44px;padding:8px;">−</button>
+      <input id="editQty" type="number" min="1" step="1" value="1" style="text-align:center;flex:0 0 80px;" />
+      <button type="button" class="secondary" id="qtyPlus" style="width:44px;padding:8px;">+</button>
     </div>
+
+    <label for="editBrand">Brand</label>
+    <input id="editBrand" type="text" placeholder="e.g. Phillips, Tastic, —" />
+
+    <label for="editSize">Size / pack</label>
+    <input id="editSize" type="text" placeholder="e.g. 1kg, 4 pack, 1 bag" />
+
+    <label for="editNotes">Notes</label>
+    <input id="editNotes" type="text" placeholder="e.g. organic, the blue one" />
+
+    <label for="editRetailer">Retailer</label>
+    <select id="editRetailer"></select>
+
+    <label for="editAisle">Aisle (in-store retailers only)</label>
+    <select id="editAisle"></select>
+
+    <div class="row">
+      <button class="danger" id="editDelete">Delete</button>
+      <button class="secondary" id="editCancel">Cancel</button>
+    </div>
+    <div style="margin-top:8px"><button id="editSave" style="width:100%;">Save</button></div>
   </div>
 </div>
 
@@ -814,32 +854,37 @@ function renderItem(it, retailer, hasAisle) {
   const row = document.createElement("div");
   row.className = "item" + (it.checked ? " checked" : "");
   const isOnline = retailer.kind === "online";
-  const isOther = retailer.id === "other";
 
   const findBtn = (state.shopping && hasAisle && !isOnline)
     ? `<button class="find-btn" data-find="${it.id}">📍 Find</button>` : "";
   const linkBtn = (isOnline && it.online_order_link)
     ? `<a class="link-btn" href="${escapeAttr(it.online_order_link)}" target="_blank" rel="noopener noreferrer">🔗</a>` : "";
-  // Show "Allocate" button: prominent on Other/Online (where it's needed),
-  // available as a small "↻" on assigned items too.
-  let assignBtn = "";
-  if (isOther || isOnline) {
-    assignBtn = `<button class="assign-btn" data-assign="${it.id}">Allocate</button>`;
-  } else if (!state.shopping) {
-    assignBtn = `<button class="assign-btn" data-assign="${it.id}" title="Re-allocate" style="border-style:dotted;font-size:14px;padding:6px 8px">↻</button>`;
-  }
 
   const badges = [];
   if (it.source === "pre-do") badges.push(`<span class="badge predo">Pre-Do</span>`);
   if (it.fulfilment_mode === "online" && !isOnline) badges.push(`<span class="badge">Online</span>`);
   const badgeHtml = badges.length ? `<span class="badges">${badges.join("")}</span>` : "";
 
+  const qty = it.quantity || 1;
+  const qtyBadge = qty > 1 ? `<span class="qty-badge">×${qty}</span>` : "";
+
+  // Meta line: brand · size · notes — only render if any present
+  const metaParts = [];
+  if (it.brand) metaParts.push(escapeHtml(it.brand));
+  if (it.size)  metaParts.push(escapeHtml(it.size));
+  if (it.notes) metaParts.push(escapeHtml(it.notes));
+  const metaLine = metaParts.length
+    ? `<div class="meta-line">${metaParts.join('<span class="sep">·</span>')}</div>`
+    : "";
+
   row.innerHTML = `
     <div class="check" data-id="${it.id}">${it.checked ? "✓" : ""}</div>
-    <div class="name">${escapeHtml(it.name)} ${badgeHtml}</div>
+    <div style="flex:1;min-width:0;">
+      <div class="name" data-edit="${it.id}">${escapeHtml(it.name)}${qtyBadge} ${badgeHtml}</div>
+      ${metaLine}
+    </div>
     ${linkBtn}
     ${findBtn}
-    ${assignBtn}
     <button class="del-btn" data-del="${it.id}" aria-label="Delete">✕</button>
   `;
   return row;
@@ -991,12 +1036,17 @@ async function addItem(query) {
   if (!query) return false;
   const trimmed = query.trim();
   if (!trimmed) return false;
-  if (!config.token) { showConfigBanner("Set your token in Settings to add items."); $("settingsModal").classList.add("open"); return false; }
-  // Skip dup if already on list (same name, case-insensitive)
-  if (state.items.some(i => i.name.toLowerCase() === trimmed.toLowerCase())) return false;
+  if (!config.token) {
+    showConfigBanner("Set your token in Settings to add items.");
+    $("settingsModal").classList.add("open");
+    return false;
+  }
   try {
+    // Server merges duplicates by incrementing quantity. No client-side dedupe.
+    // Track the qty BEFORE the add so undo can restore it (rather than delete).
+    const beforeQty = state.items.find(i => i.name.toLowerCase() === trimmed.toLowerCase())?.quantity ?? 0;
     const r = await api("/api/list/add", { method: "POST", body: { name: trimmed } });
-    state.lastAction = { kind: "add", id: r.id };
+    state.lastAction = { kind: "add", id: r.id, prevQty: beforeQty };
     await refreshList();
     return true;
   } catch (err) {
@@ -1060,7 +1110,13 @@ async function undo() {
   state.lastAction = null;
   try {
     if (a.kind === "add") {
-      await api("/api/list/delete", { method: "POST", body: { id: a.id } });
+      if (a.prevQty && a.prevQty > 0) {
+        // Was a merge — restore previous quantity
+        await api("/api/list/update", { method: "POST", body: { id: a.id, quantity: a.prevQty } });
+      } else {
+        // Was a new insert — delete
+        await api("/api/list/delete", { method: "POST", body: { id: a.id } });
+      }
     } else if (a.kind === "tick") {
       const it = state.items.find(i => i.id === a.id);
       if (it) await api("/api/list/check", { method: "POST", body: { id: a.id, checked: !it.checked } });
@@ -1083,15 +1139,20 @@ async function refreshList() {
   } catch (err) { /* ignore */ }
 }
 
-/* ============ Allocate retailer modal ============ */
-let allocItemId = null;
-async function openAllocate(itemId) {
+/* ============ Edit item modal ============ */
+let editingItemId = null;
+
+async function openEditItem(itemId) {
   const it = state.items.find(i => i.id === itemId);
   if (!it) return;
-  allocItemId = itemId;
-  $("allocateTitle").textContent = "Allocate: " + it.name;
+  editingItemId = itemId;
+  $("editTitle").textContent = it.name;
+  $("editQty").value = it.quantity || 1;
+  $("editBrand").value = it.brand || "";
+  $("editSize").value = it.size || "";
+  $("editNotes").value = it.notes || "";
 
-  const sel = $("allocRetailer");
+  const sel = $("editRetailer");
   sel.innerHTML = "";
   for (const r of state.retailers) {
     const opt = document.createElement("option");
@@ -1101,11 +1162,12 @@ async function openAllocate(itemId) {
     sel.appendChild(opt);
   }
 
-  await populateAllocAisles(sel.value, it.aisle_id);
-  $("allocateModal").classList.add("open");
+  await populateEditAisles(sel.value, it.aisle_id);
+  $("editModal").classList.add("open");
 }
-async function populateAllocAisles(retailerId, currentAisle) {
-  const sel = $("allocAisle");
+
+async function populateEditAisles(retailerId, currentAisle) {
+  const sel = $("editAisle");
   sel.innerHTML = `<option value="">(none)</option>`;
   const retailer = state.retailers.find(r => r.id === retailerId);
   if (!retailer || retailer.kind === "online" || retailer.id === "other") { sel.disabled = true; return; }
@@ -1119,17 +1181,42 @@ async function populateAllocAisles(retailerId, currentAisle) {
     sel.appendChild(opt);
   }
 }
-$("allocRetailer").addEventListener("change", (e) => populateAllocAisles(e.target.value, null));
-$("allocCancel").addEventListener("click", () => $("allocateModal").classList.remove("open"));
-$("allocSave").addEventListener("click", async () => {
-  if (!allocItemId) return;
-  const retailerId = $("allocRetailer").value;
-  const aisleId = $("allocAisle").value || null;
+
+$("qtyMinus").addEventListener("click", () => {
+  const inp = $("editQty");
+  const v = Math.max(1, (parseInt(inp.value, 10) || 1) - 1);
+  inp.value = v;
+});
+$("qtyPlus").addEventListener("click", () => {
+  const inp = $("editQty");
+  const v = Math.max(1, (parseInt(inp.value, 10) || 1) + 1);
+  inp.value = v;
+});
+$("editRetailer").addEventListener("change", (e) => populateEditAisles(e.target.value, null));
+$("editCancel").addEventListener("click", () => $("editModal").classList.remove("open"));
+$("editDelete").addEventListener("click", async () => {
+  if (!editingItemId) return;
+  if (!confirm("Delete this item?")) return;
+  const id = editingItemId;
+  $("editModal").classList.remove("open");
+  await deleteItem(id);
+});
+$("editSave").addEventListener("click", async () => {
+  if (!editingItemId) return;
+  const id = editingItemId;
+  const fields = {
+    quantity: Math.max(1, parseInt($("editQty").value, 10) || 1),
+    brand: $("editBrand").value.trim() || null,
+    size: $("editSize").value.trim() || null,
+    notes: $("editNotes").value.trim() || null,
+    retailer_id: $("editRetailer").value,
+    aisle_id: $("editAisle").value || null,
+  };
   try {
-    await api("/api/list/assign", { method: "POST", body: { id: allocItemId, retailerId, aisleId } });
-    $("allocateModal").classList.remove("open");
+    await api("/api/list/update", { method: "POST", body: { id, ...fields } });
+    $("editModal").classList.remove("open");
     await refreshList();
-  } catch (err) { alert("Allocate failed: " + err.message); }
+  } catch (err) { alert("Save failed: " + err.message); }
 });
 
 /* ============ Finder map ============ */
@@ -1328,12 +1415,12 @@ $("printBtn").addEventListener("click", () => window.print());
 $("list").addEventListener("click", (e) => {
   const c = e.target.closest("[data-id]");
   const f = e.target.closest("[data-find]");
-  const a = e.target.closest("[data-assign]");
-  const d = e.target.closest("[data-del]");
+  const ed = e.target.closest("[data-edit]");
+  const del = e.target.closest("[data-del]");
   if (c) toggleItem(c.dataset.id);
   else if (f) openFinder(f.dataset.find);
-  else if (a) openAllocate(a.dataset.assign);
-  else if (d) deleteItem(d.dataset.del);
+  else if (ed) openEditItem(ed.dataset.edit);
+  else if (del) deleteItem(del.dataset.del);
 });
 
 /* ============ PWA ============ */

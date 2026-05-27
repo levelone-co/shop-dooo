@@ -48,14 +48,17 @@ CREATE INDEX idx_aisles_retailer ON aisles(retailer_id, position);
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- products (master list, retailer-agnostic)
+-- default_brand / default_size are templates copied onto list_items on add.
 -- ─────────────────────────────────────────────────────────────────────────
 CREATE TABLE products (
-  id         TEXT PRIMARY KEY,                    -- UUID
-  name       TEXT NOT NULL,
-  brand      TEXT,
-  notes      TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  id            TEXT PRIMARY KEY,                  -- UUID
+  name          TEXT NOT NULL,
+  brand         TEXT,
+  notes         TEXT,
+  default_brand TEXT,
+  default_size  TEXT,                              -- "1kg" / "4 pack" / "500g"
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX idx_products_name ON products(name COLLATE NOCASE);
 
@@ -78,6 +81,7 @@ CREATE INDEX idx_locations_retailer ON product_locations(retailer_id);
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- list_items — the live shopping list (single shared list this phase)
+-- quantity / brand / size capture the user's preference per item.
 -- ─────────────────────────────────────────────────────────────────────────
 CREATE TABLE list_items (
   id                TEXT PRIMARY KEY,           -- UUID
@@ -85,6 +89,10 @@ CREATE TABLE list_items (
   product_id        TEXT REFERENCES products(id) ON DELETE SET NULL,
   retailer_id       TEXT REFERENCES retailers(id) ON DELETE SET NULL,
   aisle_id          TEXT REFERENCES aisles(id) ON DELETE SET NULL,
+  quantity          INTEGER NOT NULL DEFAULT 1,
+  brand             TEXT,                       -- "Phillips"
+  size              TEXT,                       -- "1kg" / "4 pack" / "1 bag"
+  notes             TEXT,                       -- free text
   checked           INTEGER NOT NULL DEFAULT 0,
   fulfilment_mode   TEXT NOT NULL DEFAULT 'in_store'
                      CHECK (fulfilment_mode IN ('in_store','online')),
