@@ -659,7 +659,7 @@
   </div>
 
   <div id="shoppingBanner" class="shopping-banner" style="display:none">
-    🛍️ You are in Shopping Mode <span style="font-weight:500;opacity:0.8">(Tap to Find an Item)</span>
+    🛍️ You are in Shopping Mode &ensp;<span style="font-weight:500;opacity:0.8">(Tap to Find an Item)</span>
   </div>
 
   <div class="actions">
@@ -683,7 +683,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v1.9</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v2.0</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -2004,22 +2004,40 @@ $("list").addEventListener("click", (e) => {
   } else openEditItem(id);
 });
 
-/* ============ Auto-refresh ============ */
-// When the tab/PWA becomes visible (or window regains focus), pull the
-// latest list from the server. This is how items dispatched from Pre-Do
-// while the Shop Wise tab is in the background show up without manual
-// reload.
-let _refreshGate = 0;
-function maybeAutoRefresh() {
-  const now = Date.now();
-  if (now - _refreshGate < 2000) return; // throttle
-  _refreshGate = now;
-  if (config.token) refreshList().catch(() => {});
+/* ============ Live sync — version polling (Option B) ============
+ * Every 10s while the page is visible, hit /api/list/version (~50 bytes).
+ * Only do a full /api/list fetch when the version actually changed.
+ * Polling stops when the tab is hidden and resumes on focus / visibility.
+ */
+const POLL_INTERVAL_MS = 10000;
+let lastVersion = null;
+let pollTimer = null;
+
+async function checkVersion() {
+  if (document.visibilityState !== "visible") return;
+  try {
+    const r = await api("/api/list/version", { auth: false });
+    if (r && r.v && r.v !== lastVersion) {
+      lastVersion = r.v;
+      await refreshList();
+    }
+  } catch (_) { /* silent — next tick retries */ }
+}
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(checkVersion, POLL_INTERVAL_MS);
+}
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") maybeAutoRefresh();
+  if (document.visibilityState === "visible") { checkVersion(); startPolling(); }
+  else stopPolling();
 });
-window.addEventListener("focus", maybeAutoRefresh);
+window.addEventListener("focus", () => { checkVersion(); startPolling(); });
+window.addEventListener("blur", stopPolling);
+// Start once on load if already visible
+if (document.visibilityState === "visible") startPolling();
 
 /* ============ PWA ============ */
 if ("serviceWorker" in navigator) {

@@ -51,6 +51,7 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
   if (m === "GET" && p === "/api/aisles")           return getAisles(env, url);
   if (m === "GET" && p === "/api/catalog")          return getCatalog(env, url);
   if (m === "GET" && p === "/api/list")             return getList(env, url);
+  if (m === "GET" && p === "/api/list/version")     return getListVersion(env);
   if (m === "GET" && p === "/api/products/lookup")  return lookupProduct(env, url);
 
   // ─── Pre-Do ingest: token may come in body (its existing format) ───
@@ -141,6 +142,28 @@ function nowIso(): string {
   return new Date().toISOString().replace(/\.\d+Z$/, "Z");
 }
 
+/**
+ * Smart Title Case for arriving product names.
+ *  - "tastic rice"  → "Tastic Rice"
+ *  - "TASTIC RICE"  → "Tastic Rice"
+ *  - "fatti's"      → "Fatti's"
+ *  - "coca-cola"    → "Coca-Cola"
+ *  - "NikNaks"      → "NikNaks"  (already mixed-case → trust the user)
+ *  - "CR2032 batteries" → "CR2032 Batteries" (mixed → trust)
+ */
+function smartTitleCase(s: string): string {
+  if (!s) return s;
+  const trimmed = s.trim();
+  if (!trimmed) return trimmed;
+  const allLower = trimmed === trimmed.toLowerCase();
+  const allUpper = trimmed === trimmed.toUpperCase();
+  if (!allLower && !allUpper) return trimmed; // mixed case → preserve
+  // Capitalise the first letter after a start, space, hyphen, or apostrophe.
+  return trimmed
+    .toLowerCase()
+    .replace(/(^|[\s\-'])(\p{L})/gu, (_m, sep, ch) => sep + ch.toUpperCase());
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Reads
 // ─────────────────────────────────────────────────────────────────────────
@@ -176,6 +199,22 @@ async function getCatalog(env: Env, url: URL): Promise<Response> {
   q += ` ORDER BY p.name`;
   const { results } = await env.DB.prepare(q).bind(...binds).all();
   return jsonResp({ ok: true, catalog: results }, env);
+}
+
+/**
+ * Tiny endpoint clients hit on a poll. Returns a "version" that changes
+ * whenever the list has changed (new row, edit, delete). When unchanged,
+ * the client skips the full /api/list fetch. ~50-byte responses.
+ *
+ * The version combines MAX(updated_at) (catches inserts/updates) and
+ * COUNT(*) (catches deletes, which don't bump any row's updated_at).
+ */
+async function getListVersion(env: Env): Promise<Response> {
+  const row = await env.DB.prepare(
+    `SELECT MAX(updated_at) AS max_updated, COUNT(*) AS n FROM list_items`
+  ).first<{ max_updated: string | null; n: number }>();
+  const v = `${row?.max_updated || "0"}/${row?.n ?? 0}`;
+  return jsonResp({ ok: true, v }, env);
 }
 
 async function getList(env: Env, url: URL): Promise<Response> {
@@ -256,7 +295,9 @@ async function addItemToList(env: Env, opts: {
   sourceInboxId?: string | null;
   retailerOverride?: boolean;  // if true, don't fall back to product's default retailer
 }): Promise<{ id: string; merged: boolean; quantity: number }> {
-  const name = opts.name.trim();
+  // Normalise the incoming name before lookup/insert so the list is tidy
+  // regardless of how the user typed/dictated it.
+  const name = smartTitleCase(opts.name);
   const addQty = Math.max(1, opts.quantity || 1);
   const now = nowIso();
 
@@ -386,6 +427,7 @@ async function listUpdate(req: Request, env: Env): Promise<Response> {
       sets.push(`${k} = ?`);
       let v = body[k];
       if (k === "checked") v = v ? 1 : 0;
+      if (k === "name" && typeof v === "string") v = smartTitleCase(v);
       binds.push(v);
     }
   }
