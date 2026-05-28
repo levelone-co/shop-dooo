@@ -218,7 +218,7 @@ async function getAisles(env: Env, url: URL): Promise<Response> {
 async function getCatalog(env: Env, url: URL): Promise<Response> {
   const retailer = url.searchParams.get("retailer");
   let q = `
-    SELECT p.id AS product_id, p.name, p.brand, p.notes,
+    SELECT p.id AS product_id, p.name, p.variant, p.brand, p.notes,
            p.default_brand, p.default_size, p.default_quantity, p.default_notes,
            p.default_tags, p.default_retailer_id, p.default_price, p.default_price_updated_at,
            l.id AS location_id, l.retailer_id, l.aisle_id,
@@ -254,7 +254,7 @@ async function getList(env: Env, url: URL): Promise<Response> {
   const fulfilmentMode = url.searchParams.get("fulfilment_mode");
   let q = `
     SELECT li.id, li.name, li.product_id, li.retailer_id, li.aisle_id,
-           li.quantity, li.brand, li.size, li.notes, li.tags,
+           li.quantity, li.variant, li.brand, li.size, li.notes, li.tags,
            li.checked, li.fulfilment_mode, li.online_order_link, li.external_status,
            li.source, li.source_action_id, li.source_inbox_id,
            li.created_at, li.updated_at,
@@ -321,6 +321,7 @@ async function addItemToList(env: Env, opts: {
   quantity?: number;
   retailerId?: string | null;
   aisleId?: string | null;
+  variant?: string | null;
   brand?: string | null;
   size?: string | null;
   notes?: string | null;
@@ -363,26 +364,29 @@ async function addItemToList(env: Env, opts: {
   }
   if (opts.fulfilmentMode === "online") aisleId = null;
 
-  const brand = opts.brand !== undefined ? opts.brand : (resolved.brand ?? null);
-  const size  = opts.size  !== undefined ? opts.size  : (resolved.size  ?? null);
-  const notes = opts.notes !== undefined ? opts.notes : (resolved.notes ?? null);
-  const tags  = opts.tags  !== undefined ? opts.tags  : (resolved.tags  ?? null);
+  const brand   = opts.brand   !== undefined ? opts.brand   : (resolved.brand   ?? null);
+  const size    = opts.size    !== undefined ? opts.size    : (resolved.size    ?? null);
+  const notes   = opts.notes   !== undefined ? opts.notes   : (resolved.notes   ?? null);
+  const tags    = opts.tags    !== undefined ? opts.tags    : (resolved.tags    ?? null);
+  const variant = opts.variant !== undefined ? opts.variant : (resolved.variant ?? null);
 
   const effectiveQty = Math.max(1, opts.quantity || resolved.quantity || addQty);
   const fulfil    = opts.fulfilmentMode || "in_store";
   const orderLink = opts.onlineOrderLink || null;
   const source    = opts.source || "manual";
 
-  // Increment-on-duplicate
+  // Increment-on-duplicate. Variant joins the merge key so e.g. "Long Life
+  // Milk" and "Full Cream Milk" stay as separate rows.
   const existing = await env.DB.prepare(
     `SELECT id, quantity FROM list_items
      WHERE LOWER(name) = LOWER(?)
        AND COALESCE(retailer_id,'') = COALESCE(?, '')
        AND COALESCE(brand,'')       = COALESCE(?, '')
        AND COALESCE(size,'')        = COALESCE(?, '')
+       AND COALESCE(variant,'')     = COALESCE(?, '')
        AND checked = 0
      LIMIT 1`
-  ).bind(canonical, retailerId, brand, size).first<{ id: string; quantity: number }>();
+  ).bind(canonical, retailerId, brand, size, variant).first<{ id: string; quantity: number }>();
 
   if (existing) {
     const newQty = (existing.quantity || 1) + addQty;
@@ -395,11 +399,11 @@ async function addItemToList(env: Env, opts: {
   const id = uuid();
   await env.DB.prepare(
     `INSERT INTO list_items
-       (id, name, product_id, retailer_id, aisle_id, quantity, brand, size, notes, tags,
+       (id, name, product_id, retailer_id, aisle_id, quantity, variant, brand, size, notes, tags,
         fulfilment_mode, online_order_link, source, source_action_id, source_inbox_id,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, canonical, productId, retailerId, aisleId, effectiveQty, brand, size, notes, tags,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, canonical, productId, retailerId, aisleId, effectiveQty, variant, brand, size, notes, tags,
          fulfil, orderLink, source, opts.sourceActionId || null, opts.sourceInboxId || null,
          now, now).run();
 
@@ -415,6 +419,7 @@ async function listAdd(req: Request, env: Env): Promise<Response> {
     quantity: body.quantity as number | undefined,
     retailerId: body.retailerId as string | undefined,
     aisleId: body.aisleId as string | undefined,
+    variant: body.variant as string | undefined,
     brand: body.brand as string | undefined,
     size: body.size as string | undefined,
     notes: body.notes as string | undefined,
@@ -454,7 +459,7 @@ async function listUpdate(req: Request, env: Env): Promise<Response> {
   if (!id) return jsonResp({ ok: false, error: "id required" }, env, 400);
 
   // Whitelist fields
-  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "brand", "size", "notes", "tags",
+  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "variant", "brand", "size", "notes", "tags",
                    "fulfilment_mode", "online_order_link", "external_status"];
   const sets: string[] = [];
   const binds: unknown[] = [];
@@ -581,7 +586,7 @@ const ADMIN_SCHEMA: Record<string, { table: string; fields: string[]; defaultIdP
   },
   products: {
     table: "products",
-    fields: ["id", "name", "brand", "notes",
+    fields: ["id", "name", "variant", "brand", "notes",
              "default_brand", "default_size", "default_quantity", "default_notes",
              "default_tags", "default_retailer_id", "default_price", "default_price_updated_at"],
     defaultIdPrefix: "prod-",

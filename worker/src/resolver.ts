@@ -38,6 +38,8 @@ export interface ResolverResult {
   retailer_id?: string | null;
   /** Resolved aisle (only meaningful when retailer is in-store). */
   aisle_id?: string | null;
+  /** Variant template from the product (e.g. "Long Life") or AI inference. */
+  variant?: string | null;
   /** Brand / size / tags / notes from product defaults or AI inference. */
   brand?: string | null;
   size?: string | null;
@@ -66,6 +68,7 @@ export function parseQuantityPrefix(input: string): { qty?: number; name: string
 interface StrictMatch {
   product_id: string;
   canonical_name: string;
+  variant: string | null;
   default_brand: string | null;
   default_size: string | null;
   default_quantity: number | null;
@@ -77,7 +80,7 @@ interface StrictMatch {
 }
 
 const STRICT_SQL = `
-  SELECT p.id AS product_id, p.name AS canonical_name,
+  SELECT p.id AS product_id, p.name AS canonical_name, p.variant,
          p.default_brand, p.default_size, p.default_quantity,
          p.default_notes, p.default_tags, p.default_retailer_id,
          l.retailer_id AS loc_retailer_id, l.aisle_id AS loc_aisle_id
@@ -251,6 +254,7 @@ export async function resolveItem(env: ResolverEnv, rawInput: string): Promise<R
       product_id: exact.product_id,
       retailer_id: exact.default_retailer_id || exact.loc_retailer_id || null,
       aisle_id: exact.loc_aisle_id,
+      variant: exact.variant,
       brand: exact.default_brand,
       size: exact.default_size,
       tags: exact.default_tags,
@@ -279,6 +283,7 @@ export async function resolveItem(env: ResolverEnv, rawInput: string): Promise<R
         product_id: fallback.product_id,
         retailer_id: fallback.default_retailer_id || fallback.loc_retailer_id || null,
         aisle_id: fallback.loc_aisle_id,
+        variant: fallback.variant,
         brand: fallback.default_brand,
         size: fallback.default_size,
         tags: fallback.default_tags,
@@ -302,6 +307,7 @@ export async function resolveItem(env: ResolverEnv, rawInput: string): Promise<R
         product_id: matched.product_id,
         retailer_id: ai.retailer_id ?? matched.default_retailer_id ?? matched.loc_retailer_id ?? null,
         aisle_id: ai.aisle_id ?? matched.loc_aisle_id ?? null,
+        variant: matched.variant,
         brand: ai.brand ?? matched.default_brand,
         size: ai.size ?? matched.default_size,
         tags: ai.tags ?? matched.default_tags,
@@ -326,6 +332,7 @@ export async function resolveItem(env: ResolverEnv, rawInput: string): Promise<R
         product_id: dup.product_id,
         retailer_id: ai.retailer_id ?? dup.default_retailer_id ?? dup.loc_retailer_id ?? null,
         aisle_id: ai.aisle_id ?? dup.loc_aisle_id ?? null,
+        variant: dup.variant,
         brand: ai.brand ?? dup.default_brand,
         size: ai.size ?? dup.default_size,
         tags: ai.tags ?? dup.default_tags,

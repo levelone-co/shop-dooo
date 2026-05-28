@@ -624,24 +624,26 @@
   .admin-tab.active .tab-action { opacity: 1; }
   .admin-body { min-height: 200px; }
   .admin-list-row {
-    display: flex; align-items: center; gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 6px;
     padding: 10px 12px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
     margin-bottom: 6px;
     cursor: pointer;
+    line-height: 1.4;
   }
   .admin-list-row:active { background: var(--green-light); }
   .admin-list-row .dot {
-    width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    align-self: center;
   }
-  .admin-list-row .row-main {
-    flex: 1; min-width: 0;
-  }
-  .admin-list-row .row-name { font-size: 15px; font-weight: 600; }
-  .admin-list-row .row-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .admin-list-row .row-chevron { color: var(--muted); font-size: 16px; }
+  .admin-list-row .row-name { font-size: 14px; font-weight: 600; }
+  .admin-list-row .row-sub  { font-size: 12px; color: var(--muted); }
+  .admin-list-row .row-chevron { color: var(--muted); font-size: 16px; margin-left: auto; align-self: center; }
   .admin-add-btn {
     width: 100%; padding: 12px; margin-bottom: 12px;
     background: var(--green-light);
@@ -776,7 +778,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v2.6</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v2.7</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -810,6 +812,12 @@
     <label for="editName">Name</label>
     <input id="editName" type="text" placeholder="Item name" />
 
+    <label for="editVariant">Variant</label>
+    <input id="editVariant" type="text" placeholder="e.g. Long Life, Full Cream, Original" />
+
+    <label for="editSize">Size / pack</label>
+    <input id="editSize" type="text" placeholder="e.g. 1kg, 4 pack, 1 bag" />
+
     <label>Quantity</label>
     <div style="display:flex;gap:8px;align-items:center;">
       <button type="button" class="secondary" id="qtyMinus" style="width:44px;padding:8px;">−</button>
@@ -820,15 +828,12 @@
     <label for="editBrand">Brand</label>
     <input id="editBrand" type="text" placeholder="e.g. Phillips, Tastic, —" />
 
-    <label for="editSize">Size / pack</label>
-    <input id="editSize" type="text" placeholder="e.g. 1kg, 4 pack, 1 bag" />
-
-    <label for="editNotes">Notes</label>
-    <input id="editNotes" type="text" placeholder="e.g. organic, the blue one" />
-
     <label for="editTags">Tags (comma separated)</label>
     <input id="editTags" type="text" placeholder="e.g. sixty60, no-stock 2026-05-17" />
     <div id="editTagsPreview" class="tags-row"></div>
+
+    <label for="editNotes">Notes</label>
+    <input id="editNotes" type="text" placeholder="e.g. organic, the blue one" />
 
     <label for="editRetailer">Retailer</label>
     <select id="editRetailer"></select>
@@ -1196,9 +1201,10 @@ function renderItem(it, retailer, hasAisle) {
     extras.push(`<span class="tag-chip${isWarn ? " warn" : ""}">${escapeHtml(t)}</span>`);
   }
   const metaParts = [];
-  if (it.brand) metaParts.push(escapeHtml(it.brand));
-  if (it.size)  metaParts.push(escapeHtml(it.size));
-  if (it.notes) metaParts.push(escapeHtml(it.notes));
+  if (it.brand)   metaParts.push(escapeHtml(it.brand));
+  if (it.variant) metaParts.push(escapeHtml(it.variant));
+  if (it.size)    metaParts.push(escapeHtml(it.size));
+  if (it.notes)   metaParts.push(escapeHtml(it.notes));
   if (metaParts.length) {
     extras.push(`<span class="meta-text">${metaParts.join('<span class="sep">·</span>')}</span>`);
   }
@@ -1517,11 +1523,12 @@ async function openEditItem(itemId) {
   if (!it) return;
   editingItemId = itemId;
   $("editName").value = it.name || "";
+  $("editVariant").value = it.variant || "";
+  $("editSize").value = it.size || "";
   $("editQty").value = it.quantity || 1;
   $("editBrand").value = it.brand || "";
-  $("editSize").value = it.size || "";
-  $("editNotes").value = it.notes || "";
   $("editTags").value = it.tags || "";
+  $("editNotes").value = it.notes || "";
   $("editTagsPreview").innerHTML = renderTagChips(it.tags).replace(/^<div class="tags-row">|<\/div>$/g, "");
 
   const sel = $("editRetailer");
@@ -1582,11 +1589,12 @@ $("editSave").addEventListener("click", async () => {
   const cleanTags = parseTags($("editTags").value).join(", ") || null;
   const fields = {
     name: newName,
+    variant: $("editVariant").value.trim() || null,
+    size: $("editSize").value.trim() || null,
     quantity: Math.max(1, parseInt($("editQty").value, 10) || 1),
     brand: $("editBrand").value.trim() || null,
-    size: $("editSize").value.trim() || null,
-    notes: $("editNotes").value.trim() || null,
     tags: cleanTags,
+    notes: $("editNotes").value.trim() || null,
     retailer_id: $("editRetailer").value,
     aisle_id: $("editAisle").value || null,
   };
@@ -1826,10 +1834,8 @@ function renderAdminRetailers(body) {
     row.className = "admin-list-row";
     row.innerHTML = `
       <span class="dot" style="background:${r.color || "#6b7280"}"></span>
-      <div class="row-main">
-        <div class="row-name">${escapeHtml(r.name)}</div>
-        <div class="row-sub">${r.kind}${r.is_default ? " · default" : ""}${r.online_url_template ? " · " + escapeHtml(r.online_url_template) : ""}</div>
-      </div>
+      <span class="row-name">${escapeHtml(r.name)}</span>
+      <span class="row-sub">· ${r.kind}${r.is_default ? " · default" : ""}${r.online_url_template ? " · " + escapeHtml(r.online_url_template) : ""}</span>
       <span class="row-chevron">›</span>
     `;
     row.onclick = () => openAdminEdit("retailers", r);
@@ -1855,10 +1861,8 @@ async function renderAdminProducts(body) {
         const row = document.createElement("div");
         row.className = "admin-list-row review-row";
         row.innerHTML = `
-          <div class="row-main">
-            <div class="row-name">${escapeHtml(p.name)}</div>
-            <div class="row-sub">${meta.length ? escapeHtml(meta.join(" · ")) : "(no defaults set)"}</div>
-          </div>
+          <span class="row-name">${escapeHtml(p.name)}</span>
+          <span class="row-sub">· ${meta.length ? escapeHtml(meta.join(" · ")) : "(no defaults set)"}</span>
           <button class="secondary" data-review-edit="${escapeAttr(p.id)}">Edit</button>
           <button class="secondary" data-review-approve="${escapeAttr(p.id)}">✓ Approve</button>
           <button class="danger" data-review-reject="${escapeAttr(p.id)}">✕ Reject</button>
@@ -1893,6 +1897,7 @@ async function renderAdminProducts(body) {
       products.set(c.product_id, {
         id: c.product_id,
         name: c.name,
+        variant: c.variant || null,
         brand: c.brand || null,
         notes: c.notes || null,
         default_brand: c.default_brand || null,
@@ -1917,11 +1922,14 @@ async function renderAdminProducts(body) {
     row.className = "admin-list-row";
     // Count retailers stocking this product
     const retailerIds = new Set(state.catalog.filter(c => c.product_id === p.id && c.retailer_id).map(c => c.retailer_id));
+    const subBits = [];
+    if (p.variant)         subBits.push(escapeHtml(p.variant));
+    if (p.default_size)    subBits.push(escapeHtml(p.default_size));
+    if (p.default_brand)   subBits.push(escapeHtml(p.default_brand));
+    subBits.push(`${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}`);
     row.innerHTML = `
-      <div class="row-main">
-        <div class="row-name">${escapeHtml(p.name)}</div>
-        <div class="row-sub">${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}${p.brand ? " · " + escapeHtml(p.brand) : ""}</div>
-      </div>
+      <span class="row-name">${escapeHtml(p.name)}</span>
+      <span class="row-sub">· ${subBits.join(" · ")}</span>
       <span class="row-chevron">›</span>
     `;
     row.onclick = () => openAdminEdit("products", p);
@@ -2050,12 +2058,13 @@ async function renderProductMatrix(area, productId) {
   saveBar.style.cssText = "margin-top:14px;display:flex;gap:8px;align-items:center;justify-content:flex-end;";
   saveBar.innerHTML = `
     <span style="font-size:12px;color:var(--muted);margin-right:auto">💡 Clear aisle + price to remove a retailer from this product.</span>
-    <button class="secondary" id="catalogCancel">Cancel</button>
+    <button class="secondary" id="catalogClose">Close</button>
     <button id="catalogSaveAll">Save All</button>
   `;
   area.appendChild(saveBar);
 
-  $("catalogCancel").onclick = () => renderProductMatrix(area, productId); // re-render = reset
+  // Close button closes the admin modal entirely.
+  $("catalogClose").onclick = () => $("adminModal").classList.remove("open");
   $("catalogSaveAll").onclick = () => saveProductMatrix(productId, tbody);
 }
 
@@ -2114,15 +2123,19 @@ async function saveProductMatrix(productId, tbody) {
       console.error("saveProductMatrix:", retailerId, err);
     }
   }
+  // No-change save: behave like Close — silently dismiss the admin modal.
+  if (!created && !updated && !deleted && !failed) {
+    $("adminModal").classList.remove("open");
+    return;
+  }
   const summary = [];
   if (created) summary.push(`${created} added`);
   if (updated) summary.push(`${updated} updated`);
   if (deleted) summary.push(`${deleted} removed`);
   if (failed) summary.push(`${failed} failed`);
-  if (!summary.length) summary.push("no changes");
   toast(summary.join(", "));
   await refreshAll();
-  // Re-render with fresh data
+  // Re-render with fresh data so timestamps update; modal stays open.
   const sel = $("adminBody").querySelector("select");
   const area = sel?.parentElement?.querySelector("div:last-child");
   if (sel && area && sel.value === productId) renderProductMatrix(area, productId);
@@ -2163,20 +2176,18 @@ async function openAdminEdit(resource, row) {
     form.innerHTML = `
       <label>Name</label>
       <input id="ae_name" type="text" value="${escapeAttr(row?.name || "")}" />
-      <label>Notes</label>
-      <input id="ae_notes" type="text" value="${escapeAttr(row?.notes || "")}" placeholder="Internal product notes" />
-      <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 8px"/>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Defaults applied when this product is added to a list:</div>
+      <label>Variant</label>
+      <input id="ae_variant" type="text" value="${escapeAttr(row?.variant || "")}" placeholder="e.g. Long Life, Full Cream, Original" />
+      <label>Default size / pack</label>
+      <input id="ae_default_size" type="text" value="${escapeAttr(row?.default_size || "")}" placeholder="e.g. 1kg, 4 pack" />
       <label>Default quantity</label>
       <input id="ae_default_quantity" type="number" min="1" step="1" value="${row?.default_quantity || ""}" placeholder="1" />
       <label>Default brand</label>
       <input id="ae_default_brand" type="text" value="${escapeAttr(row?.default_brand || "")}" placeholder="(blank = no default)" />
-      <label>Default size / pack</label>
-      <input id="ae_default_size" type="text" value="${escapeAttr(row?.default_size || "")}" placeholder="e.g. 1kg, 4 pack" />
       <label>Default tags</label>
       <input id="ae_default_tags" type="text" value="${escapeAttr(row?.default_tags || "")}" placeholder="comma-separated, e.g. sixty60" />
-      <label>Default notes</label>
-      <input id="ae_default_notes" type="text" value="${escapeAttr(row?.default_notes || "")}" placeholder="e.g. organic" />
+      <label>Internal product notes</label>
+      <input id="ae_notes" type="text" value="${escapeAttr(row?.notes || "")}" placeholder="Curator hints — not shown to shoppers" />
       <label>Default retailer</label>
       <select id="ae_default_retailer_id">
         <option value="">(use matrix primary)</option>
@@ -2219,10 +2230,10 @@ function snapshotAdminEditForm(resource) {
     is_default: $("ae_is_default")?.checked
   });
   if (resource === "products") return JSON.stringify({
-    name: $("ae_name")?.value, notes: $("ae_notes")?.value,
-    brand: $("ae_default_brand")?.value, size: $("ae_default_size")?.value,
-    qty: $("ae_default_quantity")?.value, notes2: $("ae_default_notes")?.value,
-    tags: $("ae_default_tags")?.value, retailer: $("ae_default_retailer_id")?.value
+    name: $("ae_name")?.value, variant: $("ae_variant")?.value,
+    size: $("ae_default_size")?.value, qty: $("ae_default_quantity")?.value,
+    brand: $("ae_default_brand")?.value, tags: $("ae_default_tags")?.value,
+    notes: $("ae_notes")?.value, retailer: $("ae_default_retailer_id")?.value
   });
   if (resource === "locations") return JSON.stringify({
     aisle: $("ae_aisle_id")?.value, price: $("ae_indicative_price")?.value
@@ -2255,12 +2266,12 @@ $("adminEditSave").addEventListener("click", async () => {
   } else if (resource === "products") {
     body = {
       name: $("ae_name").value.trim(),
-      notes: $("ae_notes").value.trim() || null,
-      default_brand: $("ae_default_brand").value.trim() || null,
+      variant: $("ae_variant").value.trim() || null,
       default_size: $("ae_default_size").value.trim() || null,
       default_quantity: parseInt($("ae_default_quantity").value, 10) || null,
-      default_notes: $("ae_default_notes").value.trim() || null,
+      default_brand: $("ae_default_brand").value.trim() || null,
       default_tags: parseTags($("ae_default_tags").value).join(", ") || null,
+      notes: $("ae_notes").value.trim() || null,
       default_retailer_id: $("ae_default_retailer_id").value || null,
     };
     if (!body.name) { alert("Name is required."); return; }

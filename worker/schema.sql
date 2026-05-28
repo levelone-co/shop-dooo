@@ -53,6 +53,7 @@ CREATE INDEX idx_aisles_retailer ON aisles(retailer_id, position);
 CREATE TABLE products (
   id            TEXT PRIMARY KEY,                  -- UUID
   name          TEXT NOT NULL,
+  variant       TEXT,                              -- "Long Life" / "Full Cream" / "Original"
   brand         TEXT,
   notes         TEXT,
   -- Provenance + curation state. created_by ∈ {"human","ai"}; review_status
@@ -103,6 +104,7 @@ CREATE TABLE list_items (
   retailer_id       TEXT REFERENCES retailers(id) ON DELETE SET NULL,
   aisle_id          TEXT REFERENCES aisles(id) ON DELETE SET NULL,
   quantity          INTEGER NOT NULL DEFAULT 1,
+  variant           TEXT,                       -- per-item override of product.variant
   brand             TEXT,                       -- "Phillips"
   size              TEXT,                       -- "1kg" / "4 pack" / "1 bag"
   notes             TEXT,                       -- free text
