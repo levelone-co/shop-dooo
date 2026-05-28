@@ -218,18 +218,18 @@
 
   .actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 8px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
   }
-  .actions button { padding: 12px 6px; font-size: 14px; }
+  .actions button { padding: 10px 4px; font-size: 13px; }
   .secondary-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
     margin-bottom: 16px;
   }
-  .secondary-actions button { padding: 10px 6px; font-size: 13px; }
+  .secondary-actions button { padding: 9px 4px; font-size: 12px; }
 
   /* Shopping banner — same size as add-row */
   .shopping-banner {
@@ -307,8 +307,18 @@
     align-items: center;
     gap: 8px;
   }
-  .item.checked .name { text-decoration: line-through; color: var(--muted); }
-  .item .name { flex: 1; font-size: 16px; }
+  .item.checked .item-line .name { text-decoration: line-through; color: var(--muted); }
+  .item .item-line {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.4;
+  }
+  .item .item-line .name { font-weight: 600; }
   .item .check {
     width: 26px; height: 26px;
     border-radius: 50%;
@@ -332,21 +342,12 @@
     margin-left: 6px;
     vertical-align: middle;
   }
-  .item .info-line {
+  .item .item-line .meta-text {
+    color: var(--muted);
     font-size: 12px;
-    color: var(--muted);
-    margin-top: 3px;
-    line-height: 1.5;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px;
+    font-weight: 400;
   }
-  .item .info-line .meta-text {
-    color: var(--muted);
-    margin-left: 4px;
-  }
-  .item .info-line .sep { margin: 0 4px; opacity: 0.5; }
+  .item .item-line .meta-text .sep { margin: 0 4px; opacity: 0.5; }
   .item .find-btn {
     width: auto; padding: 6px 10px; font-size: 12px;
     background: var(--green-light); color: var(--green-dark); border: none;
@@ -658,18 +659,18 @@
   </div>
 
   <div id="shoppingBanner" class="shopping-banner" style="display:none">
-    🛍️ You are in Shopping Mode <span style="font-weight:500;opacity:0.8">(tap an item to find it)</span>
+    🛍️ You are in Shopping Mode <span style="font-weight:500;opacity:0.8">(Tap to Find an Item)</span>
   </div>
 
   <div class="actions">
     <button id="shopBtn">🛍️ Start Shopping</button>
-    <button id="undoBtn" class="secondary" disabled>↶ Undo</button>
     <button id="removeTickedBtn" class="secondary" disabled>🗑️ Remove Ticked</button>
-    <button id="clearBtn" class="secondary">Clear All</button>
+    <button id="undoBtn" class="secondary" disabled>↶ Undo</button>
   </div>
   <div class="secondary-actions">
     <button id="shareBtn" class="secondary">📤 Share</button>
     <button id="printBtn" class="secondary">🖨️ Print</button>
+    <button id="clearBtn" class="secondary">Clear All</button>
   </div>
 
   <div class="filter-row" id="retailerFilter">
@@ -682,7 +683,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v1.8</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v1.9</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -933,7 +934,7 @@ function render() {
   const list = $("list");
   list.innerHTML = "";
 
-  $("modePill").textContent = state.shopping ? "Shopping Mode" : "List Mode";
+  $("modePill").textContent = state.shopping ? "In Shopping Mode" : "In List Mode";
   document.body.classList.toggle("shopping", state.shopping);
   $("shopBtn").textContent = state.shopping ? "← Back to List" : "🛍️ Start Shopping";
   $("shopBtn").className = state.shopping ? "secondary" : "";
@@ -1076,39 +1077,40 @@ function renderItem(it, retailer, hasAisle) {
   // Always show the qty badge — even ×1 — per user spec.
   const qtyBadge = `<span class="qty-badge">×${qty}</span>`;
 
-  // Single info-line: source badges first (PRE-DO etc. — hidden in shopping
-  // mode), then additional tag chips, then product meta. All wrap together.
-  const lineParts = [];
+  // Single-line layout: name + qty + Pre-Do (list mode only) + tags + meta,
+  // all inline. Whatever was on a second line collapses up here.
+  const extras = [];
   if (!state.shopping && it.source === "pre-do") {
-    lineParts.push(`<span class="badge predo">Pre-Do</span>`);
+    extras.push(`<span class="badge predo">Pre-Do</span>`);
   }
   if (it.fulfilment_mode === "online" && !isOnline) {
-    lineParts.push(`<span class="badge">Online</span>`);
+    extras.push(`<span class="badge">Online</span>`);
   }
-  // Tag chips (comma-separated string)
   for (const t of parseTags(it.tags)) {
     const isWarn = /^no[- ]stock/i.test(t);
-    lineParts.push(`<span class="tag-chip${isWarn ? " warn" : ""}">${escapeHtml(t)}</span>`);
+    extras.push(`<span class="tag-chip${isWarn ? " warn" : ""}">${escapeHtml(t)}</span>`);
   }
-  // Product meta — brand · size · notes (single muted text run)
   const metaParts = [];
   if (it.brand) metaParts.push(escapeHtml(it.brand));
   if (it.size)  metaParts.push(escapeHtml(it.size));
   if (it.notes) metaParts.push(escapeHtml(it.notes));
   if (metaParts.length) {
-    lineParts.push(`<span class="meta-text">${metaParts.join('<span class="sep">·</span>')}</span>`);
+    extras.push(`<span class="meta-text">${metaParts.join('<span class="sep">·</span>')}</span>`);
   }
-  const infoLine = lineParts.length
-    ? `<div class="info-line">${lineParts.join("")}</div>` : "";
+
+  // Check circle is shopping-mode-only; delete X is list-mode-only.
+  const checkEl = state.shopping
+    ? `<div class="check" data-id="${it.id}">${it.checked ? "✓" : ""}</div>` : "";
+  const delEl = state.shopping
+    ? "" : `<button class="del-btn" data-del="${it.id}" aria-label="Delete">✕</button>`;
 
   row.innerHTML = `
-    <div class="check" data-id="${it.id}">${it.checked ? "✓" : ""}</div>
-    <div style="flex:1;min-width:0;">
-      <div class="name">${escapeHtml(it.name)}${qtyBadge}</div>
-      ${infoLine}
+    ${checkEl}
+    <div class="item-line">
+      <span class="name">${escapeHtml(it.name)}</span>${qtyBadge}${extras.join("")}
     </div>
     ${linkBtn}
-    <button class="del-btn" data-del="${it.id}" aria-label="Delete">✕</button>
+    ${delEl}
   `;
   return row;
 }
