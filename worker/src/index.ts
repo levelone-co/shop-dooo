@@ -254,15 +254,17 @@ async function getList(env: Env, url: URL): Promise<Response> {
   const fulfilmentMode = url.searchParams.get("fulfilment_mode");
   let q = `
     SELECT li.id, li.name, li.product_id, li.retailer_id, li.aisle_id,
-           li.quantity, li.variant, li.brand, li.size, li.notes, li.tags,
+           li.quantity, li.variant, li.brand, li.size, li.tags,
            li.checked, li.fulfilment_mode, li.online_order_link, li.external_status,
            li.source, li.source_action_id, li.source_inbox_id,
            li.created_at, li.updated_at,
            r.name AS retailer_name, r.kind AS retailer_kind, r.color AS retailer_color,
            r.online_url_template,
            a.name AS aisle_name, a.sub AS aisle_sub, a.position AS aisle_position,
-           pl.indicative_price, pl.indicative_price_updated_at
+           pl.indicative_price, pl.indicative_price_updated_at,
+           pr.notes AS product_notes
     FROM list_items li
+    LEFT JOIN products pr ON pr.id = li.product_id
     LEFT JOIN retailers r ON r.id = li.retailer_id
     LEFT JOIN aisles a ON a.id = li.aisle_id
     LEFT JOIN product_locations pl
@@ -366,7 +368,6 @@ async function addItemToList(env: Env, opts: {
 
   const brand   = opts.brand   !== undefined ? opts.brand   : (resolved.brand   ?? null);
   const size    = opts.size    !== undefined ? opts.size    : (resolved.size    ?? null);
-  const notes   = opts.notes   !== undefined ? opts.notes   : (resolved.notes   ?? null);
   const tags    = opts.tags    !== undefined ? opts.tags    : (resolved.tags    ?? null);
   const variant = opts.variant !== undefined ? opts.variant : (resolved.variant ?? null);
 
@@ -399,11 +400,11 @@ async function addItemToList(env: Env, opts: {
   const id = uuid();
   await env.DB.prepare(
     `INSERT INTO list_items
-       (id, name, product_id, retailer_id, aisle_id, quantity, variant, brand, size, notes, tags,
+       (id, name, product_id, retailer_id, aisle_id, quantity, variant, brand, size, tags,
         fulfilment_mode, online_order_link, source, source_action_id, source_inbox_id,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, canonical, productId, retailerId, aisleId, effectiveQty, variant, brand, size, notes, tags,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, canonical, productId, retailerId, aisleId, effectiveQty, variant, brand, size, tags,
          fulfil, orderLink, source, opts.sourceActionId || null, opts.sourceInboxId || null,
          now, now).run();
 
@@ -458,8 +459,11 @@ async function listUpdate(req: Request, env: Env): Promise<Response> {
   const id = body.id as string;
   if (!id) return jsonResp({ ok: false, error: "id required" }, env, 400);
 
-  // Whitelist fields
-  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "variant", "brand", "size", "notes", "tags",
+  // Whitelist fields. Notes is intentionally absent — it now lives on the
+  // product (products.notes). The frontend edits product notes via the
+  // /api/admin/products endpoint when the user changes notes from the
+  // per-item dialog.
+  const allowed = ["name", "checked", "retailer_id", "aisle_id", "quantity", "variant", "brand", "size", "tags",
                    "fulfilment_mode", "online_order_link", "external_status"];
   const sets: string[] = [];
   const binds: unknown[] = [];

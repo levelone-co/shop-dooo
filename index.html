@@ -609,19 +609,7 @@
     color: var(--green);
     border-bottom-color: var(--green);
   }
-  .admin-tab .tab-action {
-    font-size: 9px;
-    opacity: 0.6;
-    margin-left: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: var(--green-light);
-    color: var(--green-dark);
-    padding: 2px 5px;
-    border-radius: 8px;
-    font-weight: 700;
-  }
-  .admin-tab.active .tab-action { opacity: 1; }
+  /* (.tab-action chips removed; cleaner labels) */
   .admin-body { min-height: 200px; }
   .admin-list-row {
     display: flex;
@@ -652,6 +640,16 @@
     font-weight: 600;
   }
   .admin-add-btn:active { background: var(--green); color: white; }
+  .search-list-row {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .search-list-row:last-child { border-bottom: none; }
+  .search-list-row:hover     { background: var(--green-light); }
+  .search-list-row.selected  { background: var(--green); color: white; }
+  .search-list-row.selected span { color: rgba(255,255,255,0.9) !important; }
   .review-section {
     background: var(--green-light);
     border: 1px solid var(--green);
@@ -778,7 +776,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v2.7</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v2.8</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -809,14 +807,17 @@
   <div class="modal">
     <h2>Edit item</h2>
 
-    <label for="editName">Name</label>
-    <input id="editName" type="text" placeholder="Item name" />
+    <label for="editName">Name <span style="font-size:11px;color:var(--muted);font-weight:400">(type to search the catalog)</span></label>
+    <input id="editName" type="text" list="editNameList" placeholder="Type or pick…" autocomplete="off" />
+    <datalist id="editNameList"></datalist>
 
     <label for="editVariant">Variant</label>
-    <input id="editVariant" type="text" placeholder="e.g. Long Life, Full Cream, Original" />
+    <input id="editVariant" type="text" list="editVariantList" placeholder="e.g. Long Life, Full Cream, Original" autocomplete="off" />
+    <datalist id="editVariantList"></datalist>
 
     <label for="editSize">Size / pack</label>
-    <input id="editSize" type="text" placeholder="e.g. 1kg, 4 pack, 1 bag" />
+    <input id="editSize" type="text" list="editSizeList" placeholder="e.g. 1kg, 4 pack, 1 bag" autocomplete="off" />
+    <datalist id="editSizeList"></datalist>
 
     <label>Quantity</label>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -826,14 +827,15 @@
     </div>
 
     <label for="editBrand">Brand</label>
-    <input id="editBrand" type="text" placeholder="e.g. Phillips, Tastic, —" />
+    <input id="editBrand" type="text" list="editBrandList" placeholder="e.g. Phillips, Tastic, —" autocomplete="off" />
+    <datalist id="editBrandList"></datalist>
 
     <label for="editTags">Tags (comma separated)</label>
     <input id="editTags" type="text" placeholder="e.g. sixty60, no-stock 2026-05-17" />
     <div id="editTagsPreview" class="tags-row"></div>
 
-    <label for="editNotes">Notes</label>
-    <input id="editNotes" type="text" placeholder="e.g. organic, the blue one" />
+    <label for="editNotes">Internal notes <span style="font-size:11px;color:var(--muted);font-weight:400" id="editNotesScope">(per product)</span></label>
+    <input id="editNotes" type="text" placeholder="Editing this updates the product, not just this item." />
 
     <label for="editRetailer">Retailer</label>
     <select id="editRetailer"></select>
@@ -857,10 +859,10 @@
       <button class="secondary admin-close" id="adminClose" style="padding:6px 10px;">✕</button>
     </div>
     <div class="admin-tabs">
-      <button class="admin-tab active" data-tab="connection">Connection</button>
-      <button class="admin-tab" data-tab="retailers">Retailers <span class="tab-action">Add</span></button>
-      <button class="admin-tab" data-tab="products">Products <span class="tab-action">Add</span></button>
-      <button class="admin-tab" data-tab="catalog">Catalog <span class="tab-action">Select</span></button>
+      <button class="admin-tab active" data-tab="products">Products</button>
+      <button class="admin-tab" data-tab="catalog">Catalog</button>
+      <button class="admin-tab" data-tab="retailers">Retailers</button>
+      <button class="admin-tab" data-tab="connection">Connection</button>
     </div>
     <div class="admin-body" id="adminBody"></div>
   </div>
@@ -1201,10 +1203,11 @@ function renderItem(it, retailer, hasAisle) {
     extras.push(`<span class="tag-chip${isWarn ? " warn" : ""}">${escapeHtml(t)}</span>`);
   }
   const metaParts = [];
-  if (it.brand)   metaParts.push(escapeHtml(it.brand));
-  if (it.variant) metaParts.push(escapeHtml(it.variant));
-  if (it.size)    metaParts.push(escapeHtml(it.size));
-  if (it.notes)   metaParts.push(escapeHtml(it.notes));
+  if (it.brand)         metaParts.push(escapeHtml(it.brand));
+  if (it.variant)       metaParts.push(escapeHtml(it.variant));
+  if (it.size)          metaParts.push(escapeHtml(it.size));
+  // Product-level notes (curator hint that applies to every instance).
+  if (it.product_notes) metaParts.push(escapeHtml(it.product_notes));
   if (metaParts.length) {
     extras.push(`<span class="meta-text">${metaParts.join('<span class="sep">·</span>')}</span>`);
   }
@@ -1518,6 +1521,12 @@ async function refreshList() {
 /* ============ Edit item modal ============ */
 let editingItemId = null;
 
+// Track which product the current Notes field is attached to (so Save can
+// PATCH /api/admin/products with the new notes). null = item has no product;
+// notes field hidden in that case.
+let editNotesProductId = null;
+let editNotesInitial = "";
+
 async function openEditItem(itemId) {
   const it = state.items.find(i => i.id === itemId);
   if (!it) return;
@@ -1528,7 +1537,25 @@ async function openEditItem(itemId) {
   $("editQty").value = it.quantity || 1;
   $("editBrand").value = it.brand || "";
   $("editTags").value = it.tags || "";
-  $("editNotes").value = it.notes || "";
+
+  // Notes always refer to the PRODUCT row, not the item. If the item has
+  // no product_id (e.g. arrived from Pre-Do without matching the catalog),
+  // hide the notes field — there's nowhere to attach it.
+  editNotesProductId = it.product_id || null;
+  editNotesInitial = it.product_notes || "";
+  if (editNotesProductId) {
+    $("editNotes").value = editNotesInitial;
+    $("editNotes").disabled = false;
+    $("editNotesScope").textContent = "(per product — applies to every future use of this product)";
+  } else {
+    $("editNotes").value = "";
+    $("editNotes").disabled = true;
+    $("editNotesScope").textContent = "(no product linked — match it in Admin → Products first)";
+  }
+
+  // Populate datalists from the live catalog + retailer list so the inputs
+  // become chained autocompletes.
+  fillEditDatalists();
   $("editTagsPreview").innerHTML = renderTagChips(it.tags).replace(/^<div class="tags-row">|<\/div>$/g, "");
 
   const sel = $("editRetailer");
@@ -1560,6 +1587,75 @@ async function populateEditAisles(retailerId, currentAisle) {
     sel.appendChild(opt);
   }
 }
+
+function dedupeProducts() {
+  const m = new Map();
+  for (const c of state.catalog) {
+    if (!m.has(c.product_id)) m.set(c.product_id, {
+      id: c.product_id, name: c.name, variant: c.variant,
+      brand: c.default_brand, size: c.default_size, tags: c.default_tags,
+      retailer_id: c.default_retailer_id,
+      notes: c.notes
+    });
+  }
+  return [...m.values()];
+}
+
+function fillEditDatalists() {
+  const all = dedupeProducts();
+  const names    = new Set(); const variants = new Set();
+  const brands   = new Set(); const sizes    = new Set();
+  for (const p of all) {
+    if (p.name)    names.add(p.name);
+    if (p.variant) variants.add(p.variant);
+    if (p.brand)   brands.add(p.brand);
+    if (p.size)    sizes.add(p.size);
+  }
+  const fill = (id, vals) => {
+    const dl = $(id);
+    dl.innerHTML = "";
+    [...vals].sort().forEach(v => {
+      const o = document.createElement("option");
+      o.value = v;
+      dl.appendChild(o);
+    });
+  };
+  fill("editNameList",    names);
+  fill("editVariantList", variants);
+  fill("editBrandList",   brands);
+  fill("editSizeList",    sizes);
+}
+
+// Chained autofill: when the user picks a product name that exists in the
+// catalog, populate the other fields from that product — but only when the
+// target field is currently empty. Pre-edited values win.
+$("editName").addEventListener("input", () => {
+  const all = dedupeProducts();
+  const v = $("editName").value.trim();
+  const match = all.find(p => p.name.toLowerCase() === v.toLowerCase());
+  if (!match) return;
+  const fillIfEmpty = (id, val) => { if (val && !$(id).value.trim()) $(id).value = val; };
+  fillIfEmpty("editVariant", match.variant);
+  fillIfEmpty("editSize",    match.size);
+  fillIfEmpty("editBrand",   match.brand);
+  if (match.tags && !$("editTags").value.trim()) {
+    $("editTags").value = match.tags;
+    $("editTagsPreview").innerHTML = renderTagChips(match.tags).replace(/^<div class="tags-row">|<\/div>$/g, "");
+  }
+  if (match.id) {
+    editNotesProductId = match.id;
+    editNotesInitial = match.notes || "";
+    $("editNotes").value = match.notes || "";
+    $("editNotes").disabled = false;
+    $("editNotesScope").textContent = "(per product — applies to every future use of this product)";
+  }
+  // If selected product has a default retailer and the user hasn't picked
+  // one, pre-select it
+  if (match.retailer_id && $("editRetailer").value !== match.retailer_id) {
+    $("editRetailer").value = match.retailer_id;
+    populateEditAisles(match.retailer_id, null);
+  }
+});
 
 $("qtyMinus").addEventListener("click", () => {
   const inp = $("editQty");
@@ -1594,14 +1690,24 @@ $("editSave").addEventListener("click", async () => {
     quantity: Math.max(1, parseInt($("editQty").value, 10) || 1),
     brand: $("editBrand").value.trim() || null,
     tags: cleanTags,
-    notes: $("editNotes").value.trim() || null,
     retailer_id: $("editRetailer").value,
     aisle_id: $("editAisle").value || null,
   };
   try {
     await api("/api/list/update", { method: "POST", body: { id, ...fields } });
+    // Notes are product-level. Only PATCH the product if (a) we have a
+    // product_id and (b) the notes value actually changed in the dialog.
+    const newNotes = $("editNotes").value.trim();
+    if (editNotesProductId && newNotes !== (editNotesInitial || "")) {
+      try {
+        await api("/api/admin/products", { method: "PATCH",
+          body: { id: editNotesProductId, notes: newNotes || null } });
+      } catch (err) {
+        toast("Item saved, but product notes update failed: " + err.message, 3000);
+      }
+    }
     $("editModal").classList.remove("open");
-    await refreshList();
+    await refreshAll();  // catalog refresh so the new product-level note propagates
   } catch (err) { alert("Save failed: " + err.message); }
 });
 
@@ -1756,7 +1862,7 @@ async function shareList() {
 }
 
 /* ============ Admin ============ */
-let adminTab = "connection";
+let adminTab = "products";
 let adminEditing = null; // { resource: "retailers"|"products"|"locations", row: {...} | null (new) }
 
 $("settingsBtn").addEventListener("click", openAdmin);
@@ -1917,50 +2023,117 @@ async function renderAdminProducts(body) {
   add.onclick = () => openAdminEdit("products", null);
   body.appendChild(add);
   const sorted = [...products.values()].sort((a, b) => a.name.localeCompare(b.name));
-  for (const p of sorted) {
-    const row = document.createElement("div");
-    row.className = "admin-list-row";
-    // Count retailers stocking this product
-    const retailerIds = new Set(state.catalog.filter(c => c.product_id === p.id && c.retailer_id).map(c => c.retailer_id));
-    const subBits = [];
-    if (p.variant)         subBits.push(escapeHtml(p.variant));
-    if (p.default_size)    subBits.push(escapeHtml(p.default_size));
-    if (p.default_brand)   subBits.push(escapeHtml(p.default_brand));
-    subBits.push(`${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}`);
-    row.innerHTML = `
-      <span class="row-name">${escapeHtml(p.name)}</span>
-      <span class="row-sub">· ${subBits.join(" · ")}</span>
-      <span class="row-chevron">›</span>
-    `;
-    row.onclick = () => openAdminEdit("products", p);
-    body.appendChild(row);
+
+  // Search + filterable list, matching the Catalog tab pattern
+  const search = document.createElement("input");
+  search.type = "text";
+  search.placeholder = `Search ${sorted.length} products — type or pick…`;
+  search.style.cssText = "width:100%;margin-bottom:10px;";
+  search.setAttribute("autocomplete", "off");
+  body.appendChild(search);
+
+  const listArea = document.createElement("div");
+  body.appendChild(listArea);
+
+  function renderRows(filter) {
+    listArea.innerHTML = "";
+    const q = (filter || "").toLowerCase();
+    const matches = q
+      ? sorted.filter(p => p.name.toLowerCase().includes(q) ||
+                           (p.variant || "").toLowerCase().includes(q) ||
+                           (p.default_brand || "").toLowerCase().includes(q) ||
+                           (p.default_size || "").toLowerCase().includes(q))
+      : sorted;
+    if (!matches.length) {
+      listArea.innerHTML = `<div style="padding:10px;color:var(--muted);font-size:13px;">No matches.</div>`;
+      return;
+    }
+    for (const p of matches) {
+      const row = document.createElement("div");
+      row.className = "admin-list-row";
+      const retailerIds = new Set(state.catalog.filter(c => c.product_id === p.id && c.retailer_id).map(c => c.retailer_id));
+      const subBits = [];
+      if (p.variant)         subBits.push(escapeHtml(p.variant));
+      if (p.default_size)    subBits.push(escapeHtml(p.default_size));
+      if (p.default_brand)   subBits.push(escapeHtml(p.default_brand));
+      subBits.push(`${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}`);
+      row.innerHTML = `
+        <span class="row-name">${escapeHtml(p.name)}</span>
+        <span class="row-sub">· ${subBits.join(" · ")}</span>
+        <span class="row-chevron">›</span>
+      `;
+      row.onclick = () => openAdminEdit("products", p);
+      listArea.appendChild(row);
+    }
   }
+
+  search.addEventListener("input", () => renderRows(search.value.trim()));
+  renderRows("");
 }
 
 function renderAdminCatalog(body) {
-  const intro = document.createElement("div");
-  intro.style.cssText = "padding:8px 4px;font-size:13px;color:var(--muted);";
-  intro.textContent = "Pick a product to set its aisle and indicative price at every retailer:";
-  body.appendChild(intro);
-
-  const sel = document.createElement("select");
-  sel.style.cssText = "width:100%;margin-bottom:12px;";
-  sel.innerHTML = `<option value="">— Select a product —</option>`;
+  // Build dedupe map of products
   const products = new Map();
   for (const c of state.catalog) {
-    if (!products.has(c.product_id)) products.set(c.product_id, c.name);
+    if (!products.has(c.product_id)) {
+      products.set(c.product_id, {
+        id: c.product_id,
+        name: c.name,
+        variant: c.variant,
+        brand: c.default_brand,
+        size: c.default_size,
+      });
+    }
   }
-  [...products.entries()].sort((a,b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
-    const opt = document.createElement("option");
-    opt.value = id; opt.textContent = name;
-    sel.appendChild(opt);
-  });
-  body.appendChild(sel);
+  const sorted = [...products.values()].sort((a, b) => a.name.localeCompare(b.name));
 
-  const tableArea = document.createElement("div");
-  body.appendChild(tableArea);
+  // Search input with native autocomplete (datalist + onInput filter)
+  const search = document.createElement("input");
+  search.type = "text";
+  search.placeholder = `Search ${sorted.length} products — type or pick…`;
+  search.style.cssText = "width:100%;margin-bottom:10px;";
+  search.setAttribute("autocomplete", "off");
+  body.appendChild(search);
 
-  sel.onchange = () => renderProductMatrix(tableArea, sel.value);
+  const listArea = document.createElement("div");
+  listArea.style.cssText = "max-height:200px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;";
+  body.appendChild(listArea);
+
+  const matrixArea = document.createElement("div");
+  body.appendChild(matrixArea);
+
+  function renderProductList(filter) {
+    listArea.innerHTML = "";
+    const q = (filter || "").toLowerCase();
+    const matches = q
+      ? sorted.filter(p => p.name.toLowerCase().includes(q) ||
+                           (p.variant || "").toLowerCase().includes(q) ||
+                           (p.brand   || "").toLowerCase().includes(q))
+      : sorted;
+    if (!matches.length) {
+      listArea.innerHTML = `<div style="padding:10px;color:var(--muted);font-size:13px;">No matches.</div>`;
+      return;
+    }
+    for (const p of matches) {
+      const tail = [p.variant, p.brand, p.size].filter(Boolean).join(" · ");
+      const row = document.createElement("div");
+      row.className = "search-list-row";
+      row.dataset.id = p.id;
+      row.innerHTML = `<span style="font-weight:600">${escapeHtml(p.name)}</span>${tail ? `<span style="color:var(--muted);font-size:12px"> · ${escapeHtml(tail)}</span>` : ""}`;
+      row.onclick = () => {
+        search.value = p.name;
+        // mark selection in the list, render matrix
+        listArea.querySelectorAll(".search-list-row.selected").forEach(r => r.classList.remove("selected"));
+        row.classList.add("selected");
+        renderProductMatrix(matrixArea, p.id);
+      };
+      listArea.appendChild(row);
+    }
+  }
+
+  search.addEventListener("input", () => renderProductList(search.value.trim()));
+  search.addEventListener("focus", () => renderProductList(search.value.trim()));
+  renderProductList("");  // Show ALL on first render
 }
 
 /**
