@@ -34,19 +34,20 @@ INSERT INTO aisles (id, retailer_id, name, sub, position, kind, side, map_x, map
   ('pnp:checkout', 'pnp', 'Checkout', NULL,          15, 'perim', 'bottom',160, 270, 50, 40);
 
 -- ─────────────────────────────────────────────────────────────────────────
--- Aisles — Checkers (mirror — Produce on the right side)
+-- Aisles — Checkers (same physical layout as PnP; keeps own IDs so
+-- product↔aisle links stay separate)
 -- ─────────────────────────────────────────────────────────────────────────
 INSERT INTO aisles (id, retailer_id, name, sub, position, kind, side, map_x, map_y, map_w, map_h) VALUES
-  ('chk:a1',       'checkers', 'Aisle 1', 'Snacks',       1, 'aisle', NULL,   10, 64,  20, 192),
-  ('chk:a2',       'checkers', 'Aisle 2', 'Cereals',      2, 'aisle', NULL,   32, 64,  20, 192),
-  ('chk:a3',       'checkers', 'Aisle 3', 'Canned',       3, 'aisle', NULL,   54, 64,  20, 192),
-  ('chk:a4',       'checkers', 'Aisle 4', 'Pasta & Rice', 4, 'aisle', NULL,   76, 64,  20, 192),
-  ('chk:a5',       'checkers', 'Aisle 5', 'Cleaning',     5, 'aisle', NULL,   98, 64,  20, 192),
-  ('chk:a6',       'checkers', 'Aisle 6', 'Toiletries',   6, 'aisle', NULL,  120, 64,  20, 192),
-  ('chk:a7',       'checkers', 'Aisle 7', 'Beverages',    7, 'aisle', NULL,  142, 64,  20, 192),
-  ('chk:bakery',   'checkers', 'Bakery',   NULL,          8, 'perim','top',   10, 10,  60,  40),
-  ('chk:a8',       'checkers', 'Aisle 8', 'Baby & Pet',   9, 'aisle', NULL,  164, 64,  20, 192),
-  ('chk:produce',  'checkers', 'Produce', NULL,          10, 'aisle', NULL,  186, 64,  20, 192),
+  ('chk:produce',  'checkers', 'Produce', NULL,           1, 'aisle', NULL,   10, 64,  20, 192),
+  ('chk:a1',       'checkers', 'Aisle 1', 'Snacks',       2, 'aisle', NULL,   32, 64,  20, 192),
+  ('chk:a2',       'checkers', 'Aisle 2', 'Cereals',      3, 'aisle', NULL,   54, 64,  20, 192),
+  ('chk:a3',       'checkers', 'Aisle 3', 'Canned',       4, 'aisle', NULL,   76, 64,  20, 192),
+  ('chk:a4',       'checkers', 'Aisle 4', 'Pasta & Rice', 5, 'aisle', NULL,   98, 64,  20, 192),
+  ('chk:a5',       'checkers', 'Aisle 5', 'Cleaning',     6, 'aisle', NULL,  120, 64,  20, 192),
+  ('chk:bakery',   'checkers', 'Bakery',   NULL,          7, 'perim','top',   10, 10,  60,  40),
+  ('chk:a6',       'checkers', 'Aisle 6', 'Toiletries',   8, 'aisle', NULL,  142, 64,  20, 192),
+  ('chk:a7',       'checkers', 'Aisle 7', 'Beverages',    9, 'aisle', NULL,  164, 64,  20, 192),
+  ('chk:a8',       'checkers', 'Aisle 8', 'Baby & Pet',  10, 'aisle', NULL,  186, 64,  20, 192),
   ('chk:deli',     'checkers', 'Deli',     NULL,         11, 'perim','top',   80, 10,  60,  40),
   ('chk:butchery', 'checkers', 'Butchery', NULL,         12, 'perim','top',  150, 10,  60,  40),
   ('chk:dairy',    'checkers', 'Dairy',    NULL,         13, 'perim','bottom', 10, 270, 80, 40),

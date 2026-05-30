@@ -722,22 +722,17 @@
     padding: 6px 8px;
     font-size: 13px;
   }
-  /* "Last priced" anchored to the right edge of the price cell. Pushed
-   * just below the cell's bottom border so the text touches the line
-   * from below instead of crossing through it. Absolute positioning
-   * lets long dates overflow leftward into the Aisle / Retailer cells. */
-  .catalog-matrix td { position: relative; }
+  /* "Last priced" sits directly below the price input (inline flow),
+   * right-aligned. Long dates overflow leftward into the Aisle column
+   * thanks to overflow:visible on the td. */
+  .catalog-matrix td { overflow: visible; }
   .catalog-matrix td .ts {
-    position: absolute;
-    right: 6px;
-    top: 100%;
-    transform: translateY(-1px);   /* text top just under the border */
     font-size: 10px;
     color: var(--muted);
-    white-space: nowrap;
+    margin-top: 2px;
     text-align: right;
+    white-space: nowrap;
     pointer-events: none;
-    z-index: 1;
   }
   .catalog-matrix .retailer-cell {
     display: flex; align-items: center; gap: 6px;
@@ -816,7 +811,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v3.2</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v3.3</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -2031,10 +2026,16 @@ function renderAdminRetailers(body) {
   for (const r of sortedRetailers(state.retailers)) {
     const row = document.createElement("div");
     row.className = "admin-list-row";
+    // Same wrap-per-chunk pattern as the products list — each detail
+    // is its own flex item so only the overflowing pieces drop down.
+    const bits = [r.kind];
+    if (r.is_default)         bits.push("default");
+    if (r.online_url_template) bits.push(r.online_url_template);
+    const subHtml = bits.map(b => `<span class="row-sub">· ${escapeHtml(b)}</span>`).join("");
     row.innerHTML = `
       <span class="dot" style="background:${r.color || "#6b7280"}"></span>
       <span class="row-name">${escapeHtml(r.name)}</span>
-      <span class="row-sub">· ${r.kind}${r.is_default ? " · default" : ""}${r.online_url_template ? " · " + escapeHtml(r.online_url_template) : ""}</span>
+      ${subHtml}
       <span class="row-chevron">›</span>
     `;
     row.onclick = () => openAdminEdit("retailers", r);
@@ -2059,9 +2060,12 @@ async function renderAdminProducts(body) {
         if (p.default_tags)       meta.push("tags: " + p.default_tags);
         const row = document.createElement("div");
         row.className = "admin-list-row review-row";
+        const subHtml = meta.length
+          ? meta.map(m => `<span class="row-sub">· ${escapeHtml(m)}</span>`).join("")
+          : `<span class="row-sub">· (no defaults set)</span>`;
         row.innerHTML = `
           <span class="row-name">${escapeHtml(p.name)}</span>
-          <span class="row-sub">· ${meta.length ? escapeHtml(meta.join(" · ")) : "(no defaults set)"}</span>
+          ${subHtml}
           <button class="secondary" data-review-edit="${escapeAttr(p.id)}">Edit</button>
           <button class="secondary" data-review-approve="${escapeAttr(p.id)}">✓ Approve</button>
           <button class="danger" data-review-reject="${escapeAttr(p.id)}">✕ Reject</button>
@@ -2146,14 +2150,17 @@ async function renderAdminProducts(body) {
       row.className = "admin-list-row";
       const retailerIds = new Set(state.catalog.filter(c => c.product_id === p.id && c.retailer_id).map(c => c.retailer_id));
       const subBits = [];
-      // Display order: Variant · Brand · Size · (retailer count)
+      // Display order: Variant · Brand · Size · (retailer count). Each
+      // chunk is its own flex item so a too-long row wraps piece by
+      // piece — not the whole sub-line jumping to a new line as a unit.
       if (p.variant)         subBits.push(escapeHtml(p.variant));
       if (p.default_brand)   subBits.push(escapeHtml(p.default_brand));
       if (p.default_size)    subBits.push(escapeHtml(p.default_size));
       subBits.push(`${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}`);
+      const subHtml = subBits.map(b => `<span class="row-sub">· ${b}</span>`).join("");
       row.innerHTML = `
         <span class="row-name">${escapeHtml(p.name)}</span>
-        <span class="row-sub">· ${subBits.join(" · ")}</span>
+        ${subHtml}
         <span class="row-chevron">›</span>
       `;
       row.onclick = () => openAdminEdit("products", p);
