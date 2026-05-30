@@ -207,14 +207,34 @@
   }
   .suggestion:last-child { border-bottom: none; }
   .suggestion.active, .suggestion:hover { background: var(--green-light); }
-  .suggestion .prod { font-size: 16px; font-weight: 600; color: var(--text); }
+  .suggestion .prod {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    flex-shrink: 0;
+  }
   .suggestion .prod mark {
     background: transparent;
     color: var(--green-dark);
     font-weight: 700;
     text-decoration: underline;
   }
-  .suggestion .ais { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  /* Variant·brand·size·retailer column. Takes remaining width and is
+   * right-justified so the retailer name (the rightmost token) is in a
+   * stable column across rows. Long entries truncate from the LEFT with
+   * an ellipsis. */
+  .suggestion .ais {
+    font-size: 12px;
+    color: var(--muted);
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;             /* clips/ellipsises on the LEFT */
+  }
+  .suggestion .ais > * { direction: ltr; }   /* keep inner text reading LTR */
 
   .actions {
     display: grid;
@@ -586,7 +606,9 @@
     padding: 24px; text-align: center; color: var(--muted);
     background: var(--map-bg); border-radius: 10px;
   }
-  /* Admin modal */
+  /* Admin modal — pinned just below the app header instead of centred,
+   * so the tab strip is always at the same spot regardless of content. */
+  #adminModal { align-items: flex-start; padding-top: calc(env(safe-area-inset-top) + 70px); }
   .admin-modal { max-width: 560px; }
   .admin-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -705,11 +727,21 @@
     padding: 6px 8px;
     font-size: 13px;
   }
-  .catalog-matrix .ts {
+  /* "Last priced" anchored to the right edge of the price cell. Absolute
+   * positioning escapes the cell's clipping, so long dates visually
+   * overflow into the Aisle / Retailer columns to the LEFT — exactly
+   * where there's whitespace under the dropdown cells. */
+  .catalog-matrix td { position: relative; }
+  .catalog-matrix td .ts {
+    position: absolute;
+    right: 6px;
+    bottom: 4px;
     font-size: 10px;
     color: var(--muted);
-    margin-top: 2px;
     white-space: nowrap;
+    text-align: right;
+    pointer-events: none;
+    z-index: 1;
   }
   .catalog-matrix .retailer-cell {
     display: flex; align-items: center; gap: 6px;
@@ -788,7 +820,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v3.0</span> · cloud-backed
+  Shop Wise · <span id="appVersion">v3.1</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -997,6 +1029,29 @@ async function refreshAll() {
   }
 }
 
+/**
+ * Custom retailer ordering used everywhere in the UI:
+ *   1. The default retailer (is_default = 1)
+ *   2. "Other" catch-all
+ *   3. Hybrid retailers
+ *   4. Online retailers
+ *   5. Physical retailers (excluding "other")
+ * Within each bucket, sort by their stored `position` then name.
+ */
+function sortedRetailers(list) {
+  const bucket = (r) =>
+    r.is_default ? 0 :
+    r.id === "other" ? 1 :
+    r.kind === "hybrid" ? 2 :
+    r.kind === "online" ? 3 : 4;
+  return [...(list || [])].sort((a, b) => {
+    const ba = bucket(a), bb = bucket(b);
+    if (ba !== bb) return ba - bb;
+    if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0);
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function populateRetailerFilter() {
   const wrap = $("retailerFilter");
   // Keep the leading label, rebuild chips
@@ -1006,7 +1061,7 @@ function populateRetailerFilter() {
   allChip.textContent = "All";
   allChip.dataset.rid = "__all";
   wrap.appendChild(allChip);
-  for (const r of state.retailers) {
+  for (const r of sortedRetailers(state.retailers)) {
     const chip = document.createElement("button");
     chip.className = "chip" + (state.retailerFilter.has(r.id) ? " active" : "");
     chip.textContent = r.name;
@@ -1125,14 +1180,8 @@ function render() {
     return;
   }
 
-  // Retailer order: online first, then by position, "other" last
-  const retailerOrder = [...state.retailers].sort((a, b) => {
-    if (a.kind === "online" && b.kind !== "online") return -1;
-    if (b.kind === "online" && a.kind !== "online") return 1;
-    if (a.id === "other") return 1;
-    if (b.id === "other") return -1;
-    return a.position - b.position;
-  });
+  // Retailer order (default → Other → hybrid → online → physical)
+  const retailerOrder = sortedRetailers(state.retailers);
 
   for (const r of retailerOrder) {
     const group = groupsByRetailer.get(r.id);
@@ -1232,9 +1281,10 @@ function renderItem(it, retailer, hasAisle) {
     const isWarn = /^no[- ]stock/i.test(t);
     extras.push(`<span class="tag-chip${isWarn ? " warn" : ""}">${escapeHtml(t)}</span>`);
   }
+  // Display order on item cards: Variant · Brand · Size
   const metaParts = [];
-  if (it.brand)   metaParts.push(escapeHtml(it.brand));
   if (it.variant) metaParts.push(escapeHtml(it.variant));
+  if (it.brand)   metaParts.push(escapeHtml(it.brand));
   if (it.size)    metaParts.push(escapeHtml(it.size));
   if (metaParts.length) {
     extras.push(`<span class="meta-text">${metaParts.join('<span class="sep">·</span>')}</span>`);
@@ -1327,8 +1377,11 @@ function renderSuggestions(matches, query) {
     div.dataset.name = m.name;
     div.dataset.productId = m.product_id || "";
     const retailer = state.retailers.find(r => r.id === m.retailer_id);
+    // Variant · Brand · Size · Retailer  — wrapped in inner span so the
+    // .ais RTL-overflow trick keeps the inner text reading LTR.
     const sub = [m.variant, m.brand, m.size, retailer?.name].filter(Boolean).join(" · ");
-    div.innerHTML = `<span class="prod">${highlightMatch(m.name, query)}</span><span class="ais">${escapeHtml(sub)}</span>`;
+    div.innerHTML = `<span class="prod">${highlightMatch(m.name, query)}</span>` +
+                    `<span class="ais"><span>${escapeHtml(sub)}</span></span>`;
     suggBox.appendChild(div);
   });
   suggBox.classList.add("open");
@@ -1599,7 +1652,7 @@ async function openEditItem(itemId) {
 
   const sel = $("editRetailer");
   sel.innerHTML = "";
-  for (const r of state.retailers) {
+  for (const r of sortedRetailers(state.retailers)) {
     const opt = document.createElement("option");
     opt.value = r.id;
     opt.textContent = `${r.name} (${r.kind})`;
@@ -1981,7 +2034,7 @@ function renderAdminRetailers(body) {
   add.textContent = "+ Add retailer";
   add.onclick = () => openAdminEdit("retailers", null);
   body.appendChild(add);
-  for (const r of state.retailers) {
+  for (const r of sortedRetailers(state.retailers)) {
     const row = document.createElement("div");
     row.className = "admin-list-row";
     row.innerHTML = `
@@ -2099,9 +2152,10 @@ async function renderAdminProducts(body) {
       row.className = "admin-list-row";
       const retailerIds = new Set(state.catalog.filter(c => c.product_id === p.id && c.retailer_id).map(c => c.retailer_id));
       const subBits = [];
+      // Display order: Variant · Brand · Size · (retailer count)
       if (p.variant)         subBits.push(escapeHtml(p.variant));
-      if (p.default_size)    subBits.push(escapeHtml(p.default_size));
       if (p.default_brand)   subBits.push(escapeHtml(p.default_brand));
+      if (p.default_size)    subBits.push(escapeHtml(p.default_size));
       subBits.push(`${retailerIds.size} retailer${retailerIds.size === 1 ? "" : "s"}`);
       row.innerHTML = `
         <span class="row-name">${escapeHtml(p.name)}</span>
@@ -2228,7 +2282,7 @@ async function renderProductMatrix(area, productId) {
   `;
   const tbody = tbl.querySelector("tbody");
 
-  for (const r of state.retailers) {
+  for (const r of sortedRetailers(state.retailers)) {
     const loc = existingByRetailer.get(r.id);
     const aisles = state.aislesByRetailer.get(r.id) || [];
     const aisleOpts = aisles.map(a =>
@@ -2389,7 +2443,7 @@ async function openAdminEdit(resource, row) {
   } else if (resource === "products") {
     // Default retailer dropdown — show all retailers, blank = use matrix primary.
     // Price lives on Catalog (per-retailer), not on the product itself.
-    const retOpts = state.retailers.map(r =>
+    const retOpts = sortedRetailers(state.retailers).map(r =>
       `<option value="${escapeAttr(r.id)}"${r.id === row?.default_retailer_id ? " selected" : ""}>${escapeHtml(r.name)} (${r.kind})</option>`
     ).join("");
     form.innerHTML = `
