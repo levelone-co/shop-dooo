@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#2c7a4b" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Shop Wise" />
+<meta name="apple-mobile-web-app-title" content="shop dooo" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231f5634'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='white'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E" />
 <link rel="apple-touch-icon" href="icons/icon-192.svg" />
-<title>Shop Wise</title>
+<title>shop dooo</title>
 <style>
   :root {
     --green: #2c7a4b;
@@ -761,7 +761,7 @@
         <circle cx="86" cy="144" r="4.5" fill="#1f5634"/>
         <circle cx="148" cy="144" r="4.5" fill="#1f5634"/>
       </svg>
-      Shop Wise
+      shop dooo
     </h1>
     <div class="tagline">Smarter aisles. Faster trips.</div>
   </div>
@@ -811,7 +811,7 @@
 </main>
 
 <footer class="app-footer">
-  Shop Wise · <span id="appVersion">v3.4</span> · cloud-backed
+  shop dooo · <span id="appVersion">v3.5</span> · cloud-backed
 </footer>
 
 <button class="reload-fab" id="reloadFab" aria-label="Reload">↻</button>
@@ -1937,13 +1937,13 @@ $("finderModal").addEventListener("click", () => $("finderModal").classList.remo
 
 /* ============ Share & print ============ */
 function buildShareText() {
-  if (state.items.length === 0) return "Shop Wise — empty list";
+  if (state.items.length === 0) return "shop dooo — empty list";
   const groups = {};
   for (const it of state.items) {
     const key = (it.retailer_name || "Other") + (it.aisle_name ? " · " + it.aisle_name : "");
     (groups[key] ||= []).push(it);
   }
-  let txt = "🛒 Shop Wise list\n";
+  let txt = "🛒 shop dooo list\n";
   for (const k of Object.keys(groups)) {
     txt += `\n${k}\n`;
     for (const it of groups[k]) txt += `  ${it.checked ? "☑" : "☐"} ${it.name}\n`;
@@ -1952,7 +1952,7 @@ function buildShareText() {
 }
 async function shareList() {
   const text = buildShareText();
-  if (navigator.share) { try { await navigator.share({ title: "Shop Wise list", text }); return; } catch (e) {} }
+  if (navigator.share) { try { await navigator.share({ title: "shop dooo list", text }); return; } catch (e) {} }
   try { await navigator.clipboard.writeText(text); alert("List copied to clipboard."); }
   catch (e) { prompt("Copy your list:", text); }
 }

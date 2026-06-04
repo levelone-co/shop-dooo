@@ -1,6 +1,10 @@
-# 🛒 Shop Wise
+# 🛒 shop dooo
 
 > Smarter aisles. Faster trips.
+
+*(Previously "Shop Wise" — the brand was renamed to **shop dooo**. The
+deployed infrastructure identifiers below still use the original
+`shop-wise` slugs; only the user-facing name changed.)*
 
 A family shopping app: cloud-backed catalog, retailer-aware list, AI item
 resolver, and a Pre-Do dispatch endpoint so dictated shopping items land
@@ -8,7 +12,7 @@ straight in the list.
 
 **Live app:** https://shop-wise.pages.dev
 **API:** https://shop-wise-api.apps-8ec.workers.dev
-**Repo:** https://github.com/levelone-co/shop-wise
+**Repo:** https://github.com/levelone-co/shop-dooo
 
 > Open the app URL on your phone → "Add to Home Screen" to install as a
 > PWA. On first run, ⚙️ → Connection → paste the auth token (see "Setup
