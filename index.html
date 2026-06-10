@@ -2758,7 +2758,34 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-boot();
+// When embedded in dash dooo, localStorage is partitioned by the top-level
+// origin — the token and apiUrl saved standalone are invisible here. Request
+// them from the shell before booting so the app loads without manual re-entry.
+(function () {
+  var inDash = (function () {
+    try { return !!window.parent && window.parent !== window; } catch (e) { return false; }
+  })();
+  if (!inDash) { boot(); return; }
+
+  var id = 'shop-cfg-' + Date.now();
+  var timer;
+  function handler(e) {
+    if (!e.data || e.data.v !== 1 || e.data.type !== 'config-result' || e.data.id !== id) return;
+    window.removeEventListener('message', handler);
+    clearTimeout(timer);
+    var cfg = e.data.config || {};
+    if (cfg.token)  config.token  = cfg.token;
+    if (cfg.apiUrl) config.apiUrl = cfg.apiUrl;
+    boot();
+  }
+  window.addEventListener('message', handler);
+  // 3s timeout: fall through to boot() even if the shell doesn't respond
+  timer = setTimeout(function () {
+    window.removeEventListener('message', handler);
+    boot();
+  }, 3000);
+  window.parent.postMessage({ v: 1, type: 'config-request', id: id, app: 'shop' }, '*');
+})();
 </script>
 </body>
 </html>
