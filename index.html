@@ -51,7 +51,10 @@
   [data-theme="dark"] .item.checked .check,
   [data-theme="dark"] .item .qty-badge,
   [data-theme="dark"] .chip.active,
-  [data-theme="dark"] .search-list-row.selected {
+  [data-theme="dark"] .search-list-row.selected,
+  [data-theme="dark"] header,
+  [data-theme="dark"] header h1,
+  [data-theme="dark"] header .tagline {
     color: #000;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -972,7 +975,13 @@ function toggleTheme() {
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 }
-applyTheme(localStorage.getItem(THEME_KEY) || "light");
+// Inside dash dooo the iframe's localStorage is partitioned/blocked, so the
+// app's saved theme never sticks. dash's shell is dark, so force dark when
+// embedded; standalone keeps the user's saved choice.
+const _inDash = (function () {
+  try { return !!window.parent && window.parent !== window; } catch (e) { return false; }
+})();
+applyTheme(_inDash ? "dark" : (localStorage.getItem(THEME_KEY) || "light"));
 
 /* ============ Boot ============ */
 async function boot() {
