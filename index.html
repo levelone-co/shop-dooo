@@ -2774,6 +2774,7 @@ if ("serviceWorker" in navigator) {
     window.removeEventListener('message', handler);
     clearTimeout(timer);
     var cfg = e.data.config || {};
+    console.log('[shop] config-result received, token present:', !!cfg.token);
     if (cfg.token)  config.token  = cfg.token;
     if (cfg.apiUrl) config.apiUrl = cfg.apiUrl;
     boot();
@@ -2781,9 +2782,11 @@ if ("serviceWorker" in navigator) {
   window.addEventListener('message', handler);
   // 3s timeout: fall through to boot() even if the shell doesn't respond
   timer = setTimeout(function () {
+    console.warn('[shop] config-request timed out — booting without injected token');
     window.removeEventListener('message', handler);
     boot();
   }, 3000);
+  console.log('[shop] IN_DASH detected, requesting config from shell…');
   window.parent.postMessage({ v: 1, type: 'config-request', id: id, app: 'shop' }, '*');
 })();
 </script>
