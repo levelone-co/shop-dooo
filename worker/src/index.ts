@@ -70,14 +70,14 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
   if (p === "/" || p === "/api" || p === "/api/health") {
     return jsonResp({ ok: true, service: "shop-wise-api", version: "1.0.0" }, env);
   }
-  if (m === "GET" && p === "/api/from-pre-do") {
+  if (m === "GET" && (p === "/api/from-pre-do" || p === "/api/from-pre-dooo")) {
     return Response.redirect("https://shop-wise.pages.dev/?from=predo", 302);
   }
 
   // Everything else — including reads — now requires the bearer token.
   // The Pre-Do POST has its own auth dance (token may arrive in the body
   // rather than the header), so route to it before the generic check.
-  if (m === "POST" && p === "/api/from-pre-do") {
+  if (m === "POST" && (p === "/api/from-pre-do" || p === "/api/from-pre-dooo")) {
     const cloned = req.clone();
     const body = await readJson(cloned).catch(() => ({}));
     const bodyToken = (body && typeof body === "object" && "token" in body) ? String(body.token) : "";
